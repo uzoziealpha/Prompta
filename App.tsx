@@ -1,7 +1,5 @@
-
-
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { CameraPreset, GenerationSettings, HistoryItem, UserImage, Page, AspectRatio, BotHistoryItem, UserHistoryItem } from './types';
+import { CameraPreset, GenerationSettings, HistoryItem, UserImage, Page, AspectRatio, BotHistoryItem, UserHistoryItem, Session, Theme } from './types';
 import { fileToBase64, createChatSession } from './services/geminiService';
 import type { Chat } from '@google/genai';
 
@@ -11,29 +9,50 @@ const CAMERA_PRESETS: CameraPreset[] = [
   { name: 'Default', prompt: 'photorealistic, cinematic lighting, ultra detailed' },
 ];
 
-const LOADING_MESSAGES = [
-  "Igniting Nano Banana Realism Engine...",
-  "Calibrating pixel-perfect relevance...",
-  "Rendering hyper-realistic textures...",
-  "Simulating cinematic lighting...",
-  "Applying PBR material properties...",
-  "Finalizing artifact-free output...",
+const THEMES: Theme[] = [
+    { id: 'default', name: 'Default', className: 'theme-default', styles: {
+        '--color-bg': '#000000',
+        '--color-surface-1': '#111111',
+        '--color-surface-2': '#1F1F1F',
+        '--color-surface-3': '#2a2a2a',
+        '--color-primary': '#8B5CF6',
+        '--color-primary-hover': '#7C3AED',
+        '--color-text-primary': '#FFFFFF',
+        '--color-text-secondary': '#A1A1AA',
+        '--color-border': '#27272a',
+    } as React.CSSProperties },
+    { id: 'nebula', name: 'Nebula', className: 'theme-nebula', styles: {
+        '--color-bg': '#0D011A',
+        '--color-surface-1': 'rgba(18, 2, 33, 0.5)',
+        '--color-surface-2': 'rgba(29, 10, 51, 0.6)',
+        '--color-surface-3': 'rgba(44, 21, 74, 0.7)',
+        '--color-primary': '#A78BFA',
+        '--color-primary-hover': '#9333EA',
+        '--color-text-primary': '#F3E8FF',
+        '--color-text-secondary': '#D9C2FF',
+        '--color-border': '#4A2A69',
+    } as React.CSSProperties },
+    { id: 'aether', name: 'Aether', className: 'theme-aether', styles: {
+        '--color-bg': '#0f172a',
+        '--color-surface-1': 'rgba(15, 23, 42, 0.6)',
+        '--color-surface-2': 'rgba(30, 41, 59, 0.7)',
+        '--color-surface-3': 'rgba(51, 65, 85, 0.8)',
+        '--color-primary': '#38BDF8',
+        '--color-primary-hover': '#0EA5E9',
+        '--color-text-primary': '#E2E8F0',
+        '--color-text-secondary': '#94A3B8',
+        '--color-border': '#334155',
+    } as React.CSSProperties },
 ];
 
 const EXPLORE_DATA = {
     "Trending Now": [
         { id: 1, imageUrl: "https://images.pexels.com/photos/167699/pexels-photo-167699.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2", prompt: "A serene forest in the early morning fog, cinematic, volumetric lighting, hyperrealistic." },
         { id: 2, imageUrl: "https://images.pexels.com/photos/3225517/pexels-photo-3225517.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2", prompt: "A dramatic tropical coastline with turquoise water and lush green cliffs, aerial shot, 8k." },
-        { id: 3, imageUrl: "https://images.pexels.com/photos/1001682/pexels-photo-1001682.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2", prompt: "Crashing ocean waves against a rocky shore during a vibrant sunset, long exposure, majestic." },
-        { id: 4, imageUrl: "https://images.pexels.com/photos/206359/pexels-photo-206359.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2", prompt: "Cosmic nebula with vibrant pink and purple clouds, stars shining through, deep space." }
     ],
     "Brand Moods": [
         { id: 5, imageUrl: "https://images.pexels.com/photos/3408744/pexels-photo-3408744.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2", prompt: "Minimalist landscape of a mountain range at dusk, pastel color palette, serene and peaceful." },
         { id: 6, imageUrl: "https://images.pexels.com/photos/1528640/pexels-photo-1528640.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2", prompt: "Sunlight filtering through a dense, ancient forest canopy, creating glowing god rays, magical." }
-    ],
-    "Community Showcase": [
-        { id: 7, imageUrl: "https://images.pexels.com/photos/775201/pexels-photo-775201.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2", prompt: "A wooden rope bridge extending into a lush jungle, adventure, exploration." },
-        { id: 8, imageUrl: "https://images.pexels.com/photos/210186/pexels-photo-210186.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2", prompt: "A powerful waterfall cascading down mossy rocks into a crystal clear pool, nature's power." },
     ]
 };
 
@@ -60,13 +79,40 @@ const ICONS = {
   download: 'M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3',
   sliders: 'M3 5.75A.75.75 0 013.75 5h16.5a.75.75 0 010 1.5H3.75A.75.75 0 013 5.75zM3 12a.75.75 0 01.75-.75h16.5a.75.75 0 010 1.5H3.75A.75.75 0 013 12zm0 6.25a.75.75 0 01.75-.75h16.5a.75.75 0 010 1.5H3.75A.75.75 0 01-.75-.75z',
   check: 'M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+  menu: 'M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5',
+  edit: 'M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10',
+  palette: 'M12 3.75a.75.75 0 01.75.75v.008l.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.007.008h-.007v-.008l-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008A.75.75 0 0112 3.75zM12 5.25a.75.75 0 01.75.75v.008l.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.007.008h-.007v-.008l-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008A.75.75 0 0112 5.25zm0 1.5a.75.75 0 01.75.75v.008l.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.007.008h-.007v-.008l-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008A.75.75 0 0112 6.75zM12 15a.75.75 0 01.75.75v.008l.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.007.008h-.007v-.008l-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008A.75.75 0 0112 15z M3.055 11.23a.75.75 0 010-1.06l4.242-4.243a.75.75 0 011.061 0l4.243 4.243a.75.75 0 010 1.06l-4.243 4.243a.75.75 0 01-1.06 0L3.055 11.23z',
+};
+
+// -- DYNAMIC BACKGROUND COMPONENT --
+const DynamicBackground: React.FC<{ theme: Theme }> = ({ theme }) => {
+    if (theme.id === 'nebula') {
+        return <div className="fixed top-0 left-0 w-full h-full -z-10 bg-cover" style={{ backgroundImage: 'url(https://images.pexels.com/photos/206359/pexels-photo-206359.jpeg)', animation: 'nebula-scroll 60s ease infinite' }}></div>;
+    }
+    if (theme.id === 'aether') {
+        return (
+            <div className="fixed top-0 left-0 w-full h-full -z-10 overflow-hidden">
+                {[...Array(20)].map((_, i) => (
+                    <div key={i} className="absolute rounded-full bg-[var(--color-primary)]" style={{
+                        width: `${Math.random() * 3 + 1}px`,
+                        height: `${Math.random() * 3 + 1}px`,
+                        left: `${Math.random() * 100}%`,
+                        bottom: `-${Math.random() * 20 + 20}px`,
+                        animation: `float ${Math.random() * 20 + 10}s linear infinite`,
+                        animationDelay: `${Math.random() * -30}s`,
+                    }} />
+                ))}
+            </div>
+        );
+    }
+    return null;
 };
 
 // -- HELPER COMPONENTS --
 
 const UserMessageCard: React.FC<{ item: UserHistoryItem }> = ({ item }) => (
   <div className="flex justify-end ml-10">
-    <div className="bg-purple-600 text-white rounded-xl p-3 max-w-2xl">
+    <div className="bg-[var(--color-primary)] text-white rounded-xl p-3 max-w-2xl">
       {item.text && <p className="text-white/90">{item.text}</p>}
       {item.images.length > 0 && (
         <div className={`flex flex-wrap gap-2 ${item.text ? 'mt-2' : ''}`}>
@@ -88,9 +134,9 @@ const BotMessageCard: React.FC<{ item: BotHistoryItem; onDelete: () => void; }> 
     if (item.isLoading) {
         return (
             <div className="flex justify-start mr-10">
-                <div className="bg-gray-800 rounded-xl p-4 max-w-lg inline-block w-64 h-64 flex flex-col items-center justify-center">
-                     <div className="w-12 h-12 border-4 border-t-purple-500 border-gray-700 rounded-full animate-spin"></div>
-                     <p className="mt-4 text-xs text-center text-gray-400 font-mono tracking-wider">{item.prompt}</p>
+                <div className="bg-[var(--color-surface-2)] rounded-xl p-4 max-w-lg inline-block w-64 h-64 flex flex-col items-center justify-center">
+                     <div className="w-12 h-12 border-4 border-t-[var(--color-primary)] border-gray-700 rounded-full animate-spin"></div>
+                     <p className="mt-4 text-xs text-center text-[var(--color-text-secondary)] font-mono tracking-wider">{item.prompt}</p>
                 </div>
             </div>
         );
@@ -99,8 +145,8 @@ const BotMessageCard: React.FC<{ item: BotHistoryItem; onDelete: () => void; }> 
     if (item.text && !item.imageUrl) { // Error or text-only response
         return (
              <div className="flex justify-start mr-10">
-                <div className="bg-gray-800 rounded-xl p-3 max-w-2xl">
-                    <p className="text-white/80 text-sm">{item.text}</p>
+                <div className="bg-[var(--color-surface-2)] rounded-xl p-3 max-w-2xl">
+                    <p className="text-[var(--color-text-primary)]/80 text-sm whitespace-pre-wrap">{item.text}</p>
                 </div>
             </div>
         )
@@ -120,11 +166,11 @@ const BotMessageCard: React.FC<{ item: BotHistoryItem; onDelete: () => void; }> 
         
         return (
              <div className="flex justify-start mr-10">
-                <div className="bg-gray-800 rounded-xl p-1.5 max-w-2xl group relative inline-block">
+                <div className="bg-[var(--color-surface-2)] rounded-xl p-1.5 max-w-2xl group relative inline-block">
                     <img src={item.imageUrl} alt={item.prompt} className="w-full h-auto rounded-lg" />
-                     {item.prompt && (
-                        <div className="p-2">
-                           <p className="text-sm text-gray-300 font-light line-clamp-3">{item.prompt}</p>
+                     {item.text && (
+                        <div className="p-2 border-t border-[var(--color-border)] mt-1.5">
+                           <p className="text-sm text-[var(--color-text-secondary)] font-light line-clamp-3 whitespace-pre-wrap">{item.text}</p>
                         </div>
                      )}
                     
@@ -138,7 +184,7 @@ const BotMessageCard: React.FC<{ item: BotHistoryItem; onDelete: () => void; }> 
                        </button>
                        <button
                            onClick={handleDownload}
-                           className="bg-black/50 p-2 rounded-full text-white hover:bg-purple-500/80 backdrop-blur-sm"
+                           className="bg-black/50 p-2 rounded-full text-white hover:bg-[var(--color-primary)]/80 backdrop-blur-sm"
                            aria-label="Download image"
                        >
                            <Icon path={ICONS.download} className="w-5 h-5" />
@@ -154,12 +200,12 @@ const BotMessageCard: React.FC<{ item: BotHistoryItem; onDelete: () => void; }> 
 
 const CreatePage: React.FC<{
     history: HistoryItem[];
+    setHistory: (updater: React.SetStateAction<HistoryItem[]>) => void;
     aiCommunication: string;
     setAiCommunication: (value: string) => void;
     attachedImages: UserImage[];
-    removeAttachedImage: (index: number) => void;
+    setAttachedImages: (images: UserImage[]) => void;
     handleFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-    handleDeleteHistoryItem: (id: number) => void;
     handleAiSubmit: () => void;
     aspectRatio: AspectRatio;
     setAspectRatio: (ratio: AspectRatio) => void;
@@ -175,12 +221,12 @@ const CreatePage: React.FC<{
     };
 }> = ({
     history,
+    setHistory,
     aiCommunication,
     setAiCommunication,
     attachedImages,
-    removeAttachedImage,
+    setAttachedImages,
     handleFileChange,
-    handleDeleteHistoryItem,
     handleAiSubmit,
     aspectRatio,
     setAspectRatio,
@@ -195,11 +241,19 @@ const CreatePage: React.FC<{
     const menuContainerRef = useRef<HTMLDivElement>(null);
     const selectedAspectRatio = ASPECT_RATIO_OPTIONS.find(opt => opt.name === aspectRatio);
 
+    const removeAttachedImage = (indexToRemove: number) => {
+        setAttachedImages(attachedImages.filter((_, index) => index !== indexToRemove));
+    };
+
+    const handleDeleteHistoryItem = (idToDelete: number) => {
+        setHistory(prev => prev.filter(item => item.id !== idToDelete));
+    };
+
     useEffect(() => {
         if (historyContainerRef.current) {
             historyContainerRef.current.scrollTop = historyContainerRef.current.scrollHeight;
         }
-    }, [history.length]);
+    }, [history.length, history[history.length - 1]]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -214,18 +268,18 @@ const CreatePage: React.FC<{
     }, [setAspectRatioMenuOpen]);
 
     return (
-        <div className="relative flex flex-col flex-grow min-h-0" {...dragHandlers} onPaste={handlePaste}>
+        <div className="relative flex flex-col flex-grow min-h-0 bg-[var(--color-surface-1)]/80 backdrop-blur-sm" {...dragHandlers} onPaste={handlePaste}>
              {isDragging && (
-                <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center backdrop-blur-md z-50 border-2 border-dashed border-purple-500 m-4 rounded-xl">
-                    <Icon path={ICONS.addCircle} className="w-24 h-24 text-purple-500" />
+                <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center backdrop-blur-md z-50 border-2 border-dashed border-[var(--color-primary)] m-4 rounded-xl">
+                    <Icon path={ICONS.addCircle} className="w-24 h-24 text-[var(--color-primary)]" />
                     <p className="mt-4 text-xl font-bold text-white">Drop Images Here</p>
-                    <p className="text-sm text-gray-400">Attach up to 4 images (PNG, JPG, WebP)</p>
+                    <p className="text-sm text-[var(--color-text-secondary)]">Attach up to 4 images (PNG, JPG, WebP)</p>
                 </div>
             )}
             <main ref={historyContainerRef} className="flex-grow overflow-y-auto min-h-0 p-4">
                 {history.length === 0 && (
-                     <div className="flex flex-col items-center justify-center h-full text-center text-gray-600">
-                        <p className="font-semibold text-lg">Your Conversation with Prompta</p>
+                     <div className="flex flex-col items-center justify-center h-full text-center text-[var(--color-text-secondary)]">
+                        <p className="font-semibold text-lg text-[var(--color-text-primary)]">Your Conversation with Prompta</p>
                         <p className="text-sm">Your prompts and the AI's creations will appear here.</p>
                     </div>
                 )}
@@ -241,7 +295,7 @@ const CreatePage: React.FC<{
                     })}
                 </div>
             </main>
-            <div className="flex-shrink-0 p-4 bg-black border-t border-gray-900">
+            <div className="flex-shrink-0 p-4 bg-transparent border-t border-[var(--color-border)]">
                 {attachedImages.length > 0 && (
                     <div className="pb-3">
                         <div className="flex items-center space-x-2">
@@ -275,14 +329,14 @@ const CreatePage: React.FC<{
                             value={aiCommunication}
                             onChange={(e) => setAiCommunication(e.target.value)}
                             placeholder="Communicate with AI..."
-                            className="w-full bg-gray-900 border border-gray-700 rounded-full py-3 pl-28 pr-14 text-white placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-shadow"
+                            className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-full py-3 pl-28 pr-14 text-[var(--color-text-primary)] placeholder-[var(--color-text-secondary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] transition-shadow"
                         />
                         <div className="absolute left-0 top-0 bottom-0 flex items-center pl-3 space-x-1">
                             <button
                                 type="button"
                                 onClick={() => fileInputRef.current?.click()}
                                 disabled={attachedImages.length >= 4}
-                                className="p-2 rounded-full transition-colors text-purple-400 hover:text-purple-300 disabled:text-gray-600 disabled:cursor-not-allowed"
+                                className="p-2 rounded-full transition-colors text-[var(--color-primary)] hover:text-[var(--color-primary-hover)] disabled:text-gray-600 disabled:cursor-not-allowed"
                                 aria-label="Add images"
                             >
                                 <Icon path={ICONS.addCircle} className="w-6 h-6" />
@@ -291,13 +345,13 @@ const CreatePage: React.FC<{
                                 <button
                                     type="button"
                                     onClick={() => setAspectRatioMenuOpen(!isAspectRatioMenuOpen)}
-                                    className="p-2 rounded-full transition-colors text-purple-400 hover:text-purple-300"
+                                    className="p-2 rounded-full transition-colors text-[var(--color-primary)] hover:text-[var(--color-primary-hover)]"
                                     aria-label={`Image aspect ratio settings: ${aspectRatio}`}
                                 >
                                     <Icon path={selectedAspectRatio?.iconPath || ICONS.sliders} className="w-6 h-6" />
                                 </button>
                                 {isAspectRatioMenuOpen && (
-                                    <div className="absolute bottom-full mb-2 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-20">
+                                    <div className="absolute bottom-full mb-2 w-48 bg-[var(--color-surface-3)] border border-[var(--color-border)] rounded-lg shadow-lg z-20">
                                         <ul className="py-1">
                                             {ASPECT_RATIO_OPTIONS.map(opt => (
                                                 <li key={opt.name}>
@@ -307,7 +361,7 @@ const CreatePage: React.FC<{
                                                             setAspectRatioMenuOpen(false);
                                                         }}
                                                         className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between transition-colors ${
-                                                            aspectRatio === opt.name ? 'font-semibold text-white bg-purple-600' : 'text-gray-300 hover:bg-gray-700'
+                                                            aspectRatio === opt.name ? 'font-semibold text-white bg-[var(--color-primary)]' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)]'
                                                         }`}
                                                     >
                                                         <div className="flex items-center">
@@ -328,7 +382,7 @@ const CreatePage: React.FC<{
                             <button
                                 type="submit"
                                 disabled={!aiCommunication.trim() && attachedImages.length === 0}
-                                className="p-2 rounded-full transition-colors text-white enabled:hover:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed"
+                                className="p-2 rounded-full transition-colors text-white enabled:hover:bg-[var(--color-surface-3)] disabled:text-gray-600 disabled:cursor-not-allowed"
                                 aria-label="Send message"
                             >
                                 <Icon path={ICONS.send} className="w-6 h-6" />
@@ -350,14 +404,14 @@ const ExploreImageCard: React.FC<{ imageUrl: string; prompt: string }> = ({ imag
 );
 
 const ExplorePage: React.FC = () => (
-    <main className="flex-grow overflow-y-auto p-4 md:p-6 space-y-8">
+    <main className="flex-grow overflow-y-auto p-4 md:p-6 space-y-8 bg-[var(--color-surface-1)]/80 backdrop-blur-sm">
         <div className="relative">
             <input
                 type="text"
                 placeholder="Explore new ideas, styles, and themes..."
-                className="w-full bg-gray-900 border border-gray-700 rounded-full py-3 pl-12 pr-4 text-white placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-full py-3 pl-12 pr-4 text-[var(--color-text-primary)] placeholder-[var(--color-text-secondary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)]"
             />
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)]">
                 <Icon path={ICONS.search} className="w-5 h-5" />
             </div>
         </div>
@@ -375,36 +429,88 @@ const ExplorePage: React.FC = () => (
     </main>
 );
 
+const Sidebar: React.FC<{
+    isOpen: boolean;
+    sessions: Session[];
+    activeSessionId: number | null;
+    onNewChat: () => void;
+    onSelectSession: (id: number) => void;
+    onDeleteSession: (id: number) => void;
+}> = ({ isOpen, sessions, activeSessionId, onNewChat, onSelectSession, onDeleteSession }) => {
+    if (!isOpen) return null;
+
+    const groupSessionsByDate = (sessionList: Session[]) => {
+        const groups: { [key: string]: Session[] } = {};
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        
+        sessionList.forEach(session => {
+            const sessionDate = new Date(session.date);
+            let groupName = sessionDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+            if (sessionDate.toDateString() === today.toDateString()) groupName = 'Today';
+            else if (sessionDate.toDateString() === yesterday.toDateString()) groupName = 'Yesterday';
+            
+            if (!groups[groupName]) groups[groupName] = [];
+            groups[groupName].push(session);
+        });
+        return groups;
+    };
+
+    const groupedSessions = groupSessionsByDate(sessions);
+
+    return (
+        <aside className="w-72 bg-[var(--color-surface-1)]/50 border-r border-[var(--color-border)] flex-shrink-0 flex flex-col transition-all duration-300 backdrop-blur-lg">
+            <div className="p-2 border-b border-[var(--color-border)]">
+                <button 
+                    onClick={onNewChat}
+                    className="w-full flex items-center justify-between p-2 rounded-lg text-sm font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-surface-3)] transition-colors"
+                >
+                    <span>New Chat</span>
+                    <Icon path={ICONS.edit} className="w-4 h-4" />
+                </button>
+            </div>
+            <nav className="flex-grow overflow-y-auto p-2">
+                {Object.entries(groupedSessions).map(([groupTitle, sessionsInGroup]) => (
+                    <div key={groupTitle} className="mb-4">
+                        <h3 className="px-2 py-1 text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">{groupTitle}</h3>
+                        <ul>
+                            {sessionsInGroup.map(session => (
+                                <li key={session.id}>
+                                    <button 
+                                        onClick={() => onSelectSession(session.id)}
+                                        className={`w-full text-left p-2 my-0.5 rounded-lg text-sm truncate flex justify-between items-center group transition-colors ${
+                                            activeSessionId === session.id ? 'bg-[var(--color-primary)]/80 text-white' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)]'
+                                        }`}
+                                    >
+                                        <span className="flex-grow truncate pr-2">{session.title}</span>
+                                        <div className="flex-shrink-0">
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); onDeleteSession(session.id); }}
+                                                className="p-1 rounded-full text-gray-500 hover:text-white hover:bg-red-500/80 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                aria-label={`Delete session: ${session.title}`}
+                                            >
+                                                <Icon path={ICONS.trash} className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                ))}
+            </nav>
+        </aside>
+    );
+};
+
+
 // -- MAIN APP COMPONENT --
 const App: React.FC = () => {
-  const [history, setHistory] = useState<HistoryItem[]>(() => {
-    try {
-      const savedHistoryJSON = localStorage.getItem('prompta-history');
-      if (savedHistoryJSON) {
-        // FIX: The type `any[]` is used for `savedHistory` because legacy items from
-        // localStorage might not conform to the `HistoryItem` type (e.g., missing `type` property).
-        const savedHistory: any[] = JSON.parse(savedHistoryJSON);
-        if (Array.isArray(savedHistory)) {
-          // Add backward compatibility for old format (only bot items)
-          // And ensure all items have a type.
-          // FIX: The mapping logic is made type-safe to correctly form a discriminated union.
-          // This prevents properties of `UserHistoryItem` from leaking into a `BotHistoryItem`.
-          return savedHistory.map((item: any): HistoryItem => {
-            if (item?.type === 'user') {
-              return item as UserHistoryItem;
-            }
-            // Treat as a bot item. Destructuring `images` out makes it a valid `BotHistoryItem`.
-            const { images, ...rest } = item || {};
-            return { ...rest, type: 'bot' };
-          });
-        }
-      }
-    } catch (error) {
-      console.error("Failed to load history from local storage:", error);
-      localStorage.removeItem('prompta-history'); // Clear corrupted data
-    }
-    return [];
-  });
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => localStorage.getItem('prompta-sidebar-open') !== 'false');
+  
   const [aiCommunication, setAiCommunication] = useState('');
   const [attachedImages, setAttachedImages] = useState<UserImage[]>([]);
   const [activePage, setActivePage] = useState<Page>('create');
@@ -413,15 +519,118 @@ const App: React.FC = () => {
   const [isAspectRatioMenuOpen, setAspectRatioMenuOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const dragCounter = useRef(0);
+  
+  const [activeTheme, setActiveTheme] = useState<Theme>(() => {
+    const savedThemeId = localStorage.getItem('prompta-theme-id');
+    return THEMES.find(t => t.id === savedThemeId) || THEMES[0];
+  });
+  const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
+  const themeMenuRef = useRef<HTMLDivElement>(null);
+
+
+  const activeSession = sessions.find(s => s.id === activeSessionId);
+  const history = activeSession?.history || [];
+
+  const handleNewChat = useCallback(() => {
+    const newSession: Session = {
+        id: Date.now(),
+        title: 'New Chat',
+        date: new Date().toISOString(),
+        history: [],
+    };
+    setSessions(prev => [newSession, ...prev]);
+    setActiveSessionId(newSession.id);
+    setAiCommunication('');
+    setAttachedImages([]);
+    setChat(null);
+  }, []);
 
   useEffect(() => {
     try {
-      // Save the entire history, including user messages.
-      localStorage.setItem('prompta-history', JSON.stringify(history));
-    } catch (error) {
-      console.error("Failed to save history to local storage:", error);
+        const savedSessionsJSON = localStorage.getItem('prompta-sessions');
+        const savedActiveId = localStorage.getItem('prompta-active-session-id');
+
+        if (savedSessionsJSON) {
+            const loadedSessions: Session[] = JSON.parse(savedSessionsJSON);
+            if (loadedSessions.length > 0) {
+                setSessions(loadedSessions);
+                const activeId = savedActiveId ? parseInt(savedActiveId, 10) : loadedSessions[0].id;
+                if (loadedSessions.some(s => s.id === activeId)) {
+                    setActiveSessionId(activeId);
+                } else {
+                    setActiveSessionId(loadedSessions[0].id);
+                }
+                return;
+            }
+        }
+    } catch (e) {
+        console.error("Failed to load sessions:", e);
     }
-  }, [history]);
+    handleNewChat();
+  }, [handleNewChat]);
+
+  useEffect(() => {
+    if (sessions.length > 0) {
+        localStorage.setItem('prompta-sessions', JSON.stringify(sessions));
+    }
+    if (activeSessionId !== null) {
+        localStorage.setItem('prompta-active-session-id', String(activeSessionId));
+    }
+  }, [sessions, activeSessionId]);
+
+  useEffect(() => {
+    localStorage.setItem('prompta-sidebar-open', String(isSidebarOpen));
+  }, [isSidebarOpen]);
+
+  useEffect(() => {
+    localStorage.setItem('prompta-theme-id', activeTheme.id);
+    document.body.className = activeTheme.className;
+    Object.entries(activeTheme.styles).forEach(([key, value]) => {
+      document.documentElement.style.setProperty(key, value as string);
+    });
+  }, [activeTheme]);
+  
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+        if (themeMenuRef.current && !themeMenuRef.current.contains(event.target as Node)) {
+            setIsThemeMenuOpen(false);
+        }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const setHistory = (updater: React.SetStateAction<HistoryItem[]>) => {
+    setSessions(prevSessions =>
+        prevSessions.map(s => {
+            if (s.id === activeSessionId) {
+                const newHistory = typeof updater === 'function' ? updater(s.history) : updater;
+                return { ...s, history: newHistory };
+            }
+            return s;
+        })
+    );
+  };
+  
+  const handleSelectSession = (id: number) => {
+    if (id === activeSessionId) return;
+    setActiveSessionId(id);
+    setAiCommunication('');
+    setAttachedImages([]);
+    setChat(null);
+  };
+
+  const handleDeleteSession = (idToDelete: number) => {
+    const remainingSessions = sessions.filter(s => s.id !== idToDelete);
+    setSessions(remainingSessions);
+    if (activeSessionId === idToDelete) {
+        if (remainingSessions.length > 0) {
+            setActiveSessionId(remainingSessions[0].id);
+        } else {
+            handleNewChat();
+        }
+    }
+  };
 
 
   const handleFiles = async (files: FileList | null) => {
@@ -442,51 +651,30 @@ const App: React.FC = () => {
 
     } catch (error) {
         console.error("Error processing files:", error);
-        alert("There was an error uploading one or more images. Please try again.");
     }
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
       handleFiles(event.target.files);
-      if (event.target) {
-          event.target.value = ''; // Allow re-selecting the same file
-      }
-  };
-  
-  const removeAttachedImage = (indexToRemove: number) => {
-      setAttachedImages(prev => prev.filter((_, index) => index !== indexToRemove));
-  };
-  
-  const handleDeleteHistoryItem = (idToDelete: number) => {
-      setHistory(prev => prev.filter(item => item.id !== idToDelete));
+      if (event.target) event.target.value = '';
   };
 
   const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault(); e.stopPropagation();
     dragCounter.current++;
-    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
-      setIsDragging(true);
-    }
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) setIsDragging(true);
   };
 
   const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault(); e.stopPropagation();
     dragCounter.current--;
-    if (dragCounter.current === 0) {
-      setIsDragging(false);
-    }
+    if (dragCounter.current === 0) setIsDragging(false);
   };
   
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => { e.preventDefault(); e.stopPropagation(); };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault(); e.stopPropagation();
     setIsDragging(false);
     dragCounter.current = 0;
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
@@ -496,59 +684,47 @@ const App: React.FC = () => {
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
-    // Only intercept and handle the paste event if there are image files on the clipboard.
     if (e.clipboardData.files && e.clipboardData.files.length > 0) {
       e.preventDefault();
       handleFiles(e.clipboardData.files);
     }
-    // Otherwise, allow the default browser behavior (pasting text into the input).
   };
 
   const handleAiSubmit = async () => {
     const message = aiCommunication.trim();
-    if (!message && attachedImages.length === 0) return;
+    if ((!message && attachedImages.length === 0) || !activeSessionId) return;
 
-    // Lazily initialize chat session
     const currentChat = chat ?? createChatSession();
-    if (!chat) {
-        setChat(currentChat);
-    }
+    if (!chat) setChat(currentChat);
 
     const userMessageId = Date.now();
     const botMessageId = userMessageId + 1;
     
-    // Determine the user's intent.
     const isImageTask = attachedImages.length > 0 || /create|generate|make|draw|edit|change|render|imagine/i.test(message);
-    const isIdeaTask = /idea|inspire|suggest|recommend/i.test(message) && !isImageTask;
 
-    let systemPreamble = `You are Prompta, a friendly and intelligent AI vision assistant. Your goal is to help users bring their creative ideas to life. Be helpful, concise, and inspiring.`;
+    let systemPreamble = `You are Prompta, a multi-talented AI creative assistant. Your primary role is to help users generate and edit stunning visuals. You are also a helpful partner, capable of answering general questions (like 'what is today?'), brainstorming ideas, writing captions for images, and refining user prompts to be more effective. Be friendly, creative, and always aim to be as helpful as possible. Never use the phrase 'I do not have access to real-time information'.`;
     
     if (isImageTask) {
-        systemPreamble += ` Your primary role is to generate and edit images with a deep understanding of creative and technical specifications.
-
-- **Analyze & Execute**: Carefully analyze both the text prompt and any attached images.
-- **Aspect Ratio Priority**: The user has specified a desired aspect ratio of **${aspectRatio} (${ASPECT_RATIO_OPTIONS.find(o => o.name === aspectRatio)?.ratio})**. All generated or edited images MUST strictly conform to this aspect ratio. If editing, this may require cropping, extending, or reframing the image content.
-- **Identify Properties**: If asked, accurately identify an image's properties, including its current aspect ratio.`;
-    } else if (isIdeaTask) {
-        systemPreamble += ` Your primary role is to be a creative partner. Analyze the conversation history, especially the most recent images, to provide insightful and relevant ideas, suggestions, or new creative prompts for the user. Respond with text only.`;
+        systemPreamble += ` When generating or editing an image, you MUST strictly conform to the user's specified aspect ratio: **${aspectRatio} (${ASPECT_RATIO_OPTIONS.find(o => o.name === aspectRatio)?.ratio})**.`;
     }
+    
+    let userInstruction = message || `Please perform the most logical edit based on the attached image(s). If an aspect ratio is selected (${aspectRatio}), prioritize resizing the image.`;
+    const finalMessage = `${systemPreamble}\n\n--- USER REQUEST ---\n${userInstruction}`;
+    
+    const userMessage: UserHistoryItem = { type: 'user', id: userMessageId, text: message, images: attachedImages };
+    const loadingMessage: BotHistoryItem = { type: 'bot', id: botMessageId, isLoading: true, prompt: message || `Processing image...` };
 
-    let userInstruction = message;
-
-    // Handle image-only request with a specific aspect ratio by creating a default instruction.
-    if (!userInstruction && attachedImages.length > 0) {
-        userInstruction = `Please perform the most logical edit based on the attached image(s). If an aspect ratio is selected (${aspectRatio}), prioritize resizing the image.`;
-    }
-
-    const finalMessage = userInstruction 
-        ? `${systemPreamble}\n\n--- USER REQUEST ---\n${userInstruction}` 
-        : systemPreamble;
-
-    setHistory(prev => [
-        ...prev,
-        { type: 'user', id: userMessageId, text: message, images: attachedImages },
-        { type: 'bot', id: botMessageId, isLoading: true, prompt: message || `Processing image...` }
-    ]);
+    setSessions(prevSessions => prevSessions.map(s => {
+        if (s.id === activeSessionId) {
+            const isFirstMessage = s.history.length === 0;
+            return {
+                ...s,
+                title: isFirstMessage && message ? message.substring(0, 40) : s.title,
+                history: [...s.history, userMessage, loadingMessage],
+            };
+        }
+        return s;
+    }));
     
     setAiCommunication('');
     setAttachedImages([]);
@@ -556,64 +732,27 @@ const App: React.FC = () => {
 
     try {
         const parts: ({ inlineData: { data: string; mimeType: string; } } | { text: string })[] = [];
-
-        if (attachedImages.length > 0) {
-            const imageParts = attachedImages.map(img => ({
-                inlineData: {
-                    data: img.data,
-                    mimeType: img.file.type,
-                },
-            }));
-            parts.push(...imageParts);
-        }
+        if (attachedImages.length > 0) parts.push(...attachedImages.map(img => ({ inlineData: { data: img.data, mimeType: img.file.type } })));
+        if (finalMessage) parts.push({ text: finalMessage });
         
-        if (finalMessage) {
-            parts.push({ text: finalMessage });
-        }
-        
-        if (parts.length === 0) {
-            throw new Error("Cannot send an empty message.");
-        }
-
-        // FIX: The argument to sendMessage must be an object with a `message` property.
         const response = await currentChat.sendMessage({ message: parts });
 
         let resultImage: string | undefined;
-        // FIX: Use `response.text` for simpler text extraction, as recommended by guidelines.
         const resultText = response.text;
-
-        // Loop through parts to find image data.
         for (const part of response.candidates?.[0]?.content?.parts || []) {
-            if (part.inlineData) {
-                resultImage = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-            }
+            if (part.inlineData) resultImage = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
         }
         
-        if (resultImage || resultText) {
-            setHistory(prev => prev.map(item => 
-                item.id === botMessageId 
-                ? { ...item, type: 'bot', isLoading: false, imageUrl: resultImage, text: resultText, prompt: message } 
-                : item
-            ));
-        } else {
-            // Handle cases where the AI gives a completely empty response.
-            let errorMessage = "The AI did not return a valid response.";
-             if (isImageTask) {
-                errorMessage = "The AI responded, but did not generate an image. Please try rephrasing your request.";
-            }
-             setHistory(prev => prev.map(item =>
-                item.id === botMessageId
-                ? { ...item, type: 'bot', isLoading: false, text: errorMessage, prompt: message }
-                : item
-            ));
-        }
+        const botResponse: BotHistoryItem = (resultImage || resultText) ?
+            { type: 'bot', id: botMessageId, isLoading: false, imageUrl: resultImage, text: resultText, prompt: message } :
+            { type: 'bot', id: botMessageId, isLoading: false, text: isImageTask ? "The AI responded, but did not generate an image. Please try rephrasing your request." : "The AI did not return a valid response.", prompt: message };
 
+        setSessions(prevSessions => prevSessions.map(s => s.id === activeSessionId ? { ...s, history: s.history.map(item => item.id === botMessageId ? botResponse : item) } : s));
     } catch (e: any) {
         console.error(e);
         const errorMessage = e.message || "Sorry, I couldn't process that. Please try again.";
-        setHistory(prev => prev.map(item => 
-            item.id === botMessageId ? { ...item, type: 'bot', isLoading: false, text: errorMessage } : item
-        ));
+        const errorResponse: BotHistoryItem = { type: 'bot', id: botMessageId, isLoading: false, text: errorMessage };
+        setSessions(prevSessions => prevSessions.map(s => s.id === activeSessionId ? { ...s, history: s.history.map(item => item.id === botMessageId ? errorResponse : item) } : s));
     }
   };
 
@@ -622,8 +761,8 @@ const App: React.FC = () => {
           onClick={() => setActivePage(page)}
           className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
               activePage === page 
-              ? 'bg-purple-600 text-white' 
-              : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+              ? 'bg-[var(--color-primary)] text-white' 
+              : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)] hover:text-white'
           }`}
       >
           {children}
@@ -631,40 +770,92 @@ const App: React.FC = () => {
   );
 
   return (
-    <div className="h-screen w-screen bg-black flex flex-col font-sans">
-      <header className="p-4 flex-shrink-0 flex items-center justify-between border-b border-gray-900">
+    <div className="h-screen w-screen bg-[var(--color-bg)] text-[var(--color-text-primary)] flex flex-col font-sans relative">
+      <DynamicBackground theme={activeTheme} />
+      <header className="p-4 flex-shrink-0 flex items-center justify-between border-b border-[var(--color-border)] z-10 bg-[var(--color-surface-1)]/50 backdrop-blur-lg">
         <div className="flex items-center">
+            <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="p-2 rounded-full text-[var(--color-text-secondary)] hover:text-white transition-all duration-300 mr-2 group relative border border-[var(--color-border)] hover:border-[var(--color-primary)]"
+                aria-label="Toggle session history"
+            >
+                <div className="absolute -inset-0.5 bg-[var(--color-primary)] rounded-full opacity-0 group-hover:opacity-30 blur-md transition-opacity"></div>
+                <Icon path={isSidebarOpen ? ICONS.close : ICONS.menu} className="w-6 h-6 transition-transform duration-300 group-hover:scale-110" />
+            </button>
             <h1 className="text-xl font-bold tracking-tighter">Prompta</h1>
-            <span className="ml-2 text-xs bg-purple-500/20 text-purple-400 font-mono px-2 py-0.5 rounded-full">AI</span>
+            <span className="ml-2 text-xs bg-[var(--color-primary)]/20 text-[var(--color-primary)] font-mono px-2 py-0.5 rounded-full">AI</span>
         </div>
-        <nav className="flex items-center space-x-2 bg-gray-900 p-1 rounded-lg">
-            <NavButton page="create">Create</NavButton>
-            {/* FIX: Corrected typo in closing tag from Nav-Button to NavButton */}
-            <NavButton page="explore">Explore</NavButton>
-        </nav>
+        <div className="flex items-center space-x-2">
+            <div className="relative" ref={themeMenuRef}>
+                <button 
+                    onClick={() => setIsThemeMenuOpen(!isThemeMenuOpen)}
+                    className="p-2 rounded-full text-[var(--color-text-secondary)] hover:text-white transition-colors bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)]"
+                    aria-label="Select theme"
+                >
+                    <Icon path={ICONS.palette} className="w-5 h-5" />
+                </button>
+                {isThemeMenuOpen && (
+                    <div className="absolute top-full right-0 mt-2 w-48 bg-[var(--color-surface-3)] border border-[var(--color-border)] rounded-lg shadow-2xl z-20">
+                        <ul className="py-1">
+                            {THEMES.map(theme => (
+                                <li key={theme.id}>
+                                    <button
+                                        onClick={() => {
+                                            setActiveTheme(theme);
+                                            setIsThemeMenuOpen(false);
+                                        }}
+                                        className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between transition-colors ${
+                                            activeTheme.id === theme.id ? 'font-semibold text-white bg-[var(--color-primary)]' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)]'
+                                        }`}
+                                    >
+                                        <span>{theme.name}</span>
+                                        {activeTheme.id === theme.id && <Icon path={ICONS.check} className="w-4 h-4" />}
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+            </div>
+            <nav className="flex items-center space-x-2 bg-[var(--color-surface-2)] p-1 rounded-lg">
+                <NavButton page="create">Create</NavButton>
+                <NavButton page="explore">Explore</NavButton>
+            </nav>
+        </div>
       </header>
-      
-      {activePage === 'create' ? (
-          <CreatePage 
-              history={history}
-              aiCommunication={aiCommunication}
-              setAiCommunication={setAiCommunication}
-              attachedImages={attachedImages}
-              removeAttachedImage={removeAttachedImage}
-              handleFileChange={handleFileChange}
-              handleDeleteHistoryItem={handleDeleteHistoryItem}
-              handleAiSubmit={handleAiSubmit}
-              aspectRatio={aspectRatio}
-              setAspectRatio={setAspectRatio}
-              isAspectRatioMenuOpen={isAspectRatioMenuOpen}
-              setAspectRatioMenuOpen={setAspectRatioMenuOpen}
-              isDragging={isDragging}
-              handlePaste={handlePaste}
-              dragHandlers={{ handleDragEnter, handleDragLeave, handleDragOver, handleDrop }}
+      <div className="flex flex-grow min-h-0">
+          <Sidebar
+              isOpen={isSidebarOpen}
+              sessions={sessions}
+              activeSessionId={activeSessionId}
+              onNewChat={handleNewChat}
+              onSelectSession={handleSelectSession}
+              onDeleteSession={handleDeleteSession}
           />
-      ) : (
-          <ExplorePage />
-      )}
+          <main className="flex-grow flex flex-col min-h-0">
+            {activePage === 'create' ? (
+                <CreatePage 
+                    history={history}
+                    setHistory={setHistory}
+                    aiCommunication={aiCommunication}
+                    setAiCommunication={setAiCommunication}
+                    attachedImages={attachedImages}
+                    setAttachedImages={setAttachedImages}
+                    handleFileChange={handleFileChange}
+                    handleAiSubmit={handleAiSubmit}
+                    aspectRatio={aspectRatio}
+                    setAspectRatio={setAspectRatio}
+                    isAspectRatioMenuOpen={isAspectRatioMenuOpen}
+                    setAspectRatioMenuOpen={setAspectRatioMenuOpen}
+                    isDragging={isDragging}
+                    handlePaste={handlePaste}
+                    dragHandlers={{ handleDragEnter, handleDragLeave, handleDragOver, handleDrop }}
+                />
+            ) : (
+                <ExplorePage />
+            )}
+          </main>
+      </div>
     </div>
   );
 };

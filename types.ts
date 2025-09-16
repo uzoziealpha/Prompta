@@ -52,3 +52,17 @@ export interface BotHistoryItem {
 export type HistoryItem = UserHistoryItem | BotHistoryItem;
 
 export type Page = 'create' | 'explore';
+
+export interface Session {
+    id: number;
+    title: string;
+    date: string; // ISO String for consistent date handling
+    history: HistoryItem[];
+}
+
+export interface Theme {
+    id: string;
+    name: string;
+    className: string;
+    styles: React.CSSProperties;
+}
