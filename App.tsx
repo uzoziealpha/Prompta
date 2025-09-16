@@ -1,6 +1,9 @@
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { CameraPreset, GenerationSettings, HistoryItem, UserImage, Page } from './types';
-import { fileToBase64, generateImageFromText, editImage } from './services/geminiService';
+import { fileToBase64, createChatSession } from './services/geminiService';
+import type { Chat } from '@google/genai';
+
 
 // -- CONSTANTS --
 const CAMERA_PRESETS: CameraPreset[] = [
@@ -184,19 +187,25 @@ const CreatePage: React.FC<{
                     }
                     if (item.type === 'bot') {
                         return (
-                            <div key={item.id} className="flex flex-col items-start mr-auto max-w-lg">
+                            <div key={item.id} className="flex flex-col items-start mr-auto max-w-lg space-y-2">
                                 {item.isLoading && <Loader isInline={true} />}
-                                {item.text && (
-                                    <div className="bg-red-500/20 border border-red-500 text-red-300 p-3 rounded-md text-sm">
-                                        {item.text}
-                                    </div>
-                                )}
+                                
                                 {item.imageUrl && item.prompt && (
                                     <GeneratedImageCard
                                         imageUrl={item.imageUrl}
                                         prompt={item.prompt}
                                         onDelete={() => handleDeleteHistoryItem(item.id)}
                                     />
+                                )}
+
+                                {!item.isLoading && item.text && (
+                                    <div className={`p-3 rounded-xl text-sm ${
+                                        item.imageUrl 
+                                            ? 'bg-gray-700 text-white' 
+                                            : 'bg-red-500/20 border border-red-500 text-red-300 w-full'
+                                    }`}>
+                                        {item.text}
+                                    </div>
                                 )}
                             </div>
                         );
@@ -308,23 +317,37 @@ const App: React.FC = () => {
   const [aiCommunication, setAiCommunication] = useState('');
   const [attachedImages, setAttachedImages] = useState<UserImage[]>([]);
   const [activePage, setActivePage] = useState<Page>('create');
-  const [settings, setSettings] = useState<GenerationSettings>({
-      aspectRatio: '1:1',
-      camera: CAMERA_PRESETS[0],
-      seed: ''
-  });
-  
+  const [chat, setChat] = useState<Chat | null>(null);
+
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const files = event.target.files;
-      if (files && files.length > 0) {
+      const input = event.target;
+      const files = input.files;
+
+      if (!files || files.length === 0) {
+          input.value = '';
+          return;
+      }
+
+      try {
           const newFiles = Array.from(files).slice(0, 4 - attachedImages.length);
           
+          if (newFiles.length === 0) {
+              input.value = '';
+              return;
+          }
+
           const newImagePromises = newFiles.map(file => 
               fileToBase64(file).then(base64 => ({ data: base64, file }))
           );
 
           const newImageData = await Promise.all(newImagePromises);
           setAttachedImages(prev => [...prev, ...newImageData]);
+
+      } catch (error) {
+          console.error("Error processing files:", error);
+          alert("There was an error uploading one or more images. Please try again.");
+      } finally {
+          input.value = '';
       }
   };
   
@@ -333,46 +356,73 @@ const App: React.FC = () => {
   };
   
   const handleDeleteHistoryItem = (idToDelete: number) => {
-      setHistory(prev => prev.filter(item => item.id !== idToDelete && (item.type === 'bot' ? item.id + 1 !== idToDelete : true) ));
+      setHistory(prev => prev.filter(item => item.id !== idToDelete));
   };
 
   const handleAiSubmit = async () => {
     const message = aiCommunication.trim();
     if (!message && attachedImages.length === 0) return;
 
+    // Lazily initialize chat session
+    const currentChat = chat ?? createChatSession();
+    if (!chat) {
+        setChat(currentChat);
+    }
+
     const userMessageId = Date.now();
     const botMessageId = userMessageId + 1;
 
-    // Add user message and bot loading placeholder to history
     setHistory(prev => [
         ...prev,
         { type: 'user', id: userMessageId, text: message, images: attachedImages },
         { type: 'bot', id: botMessageId, isLoading: true, prompt: message }
     ]);
     
-    // Clear inputs
     setAiCommunication('');
     setAttachedImages([]);
 
     try {
-        let resultImage: string;
-        // Decide if it's an edit or a new generation
-        if (attachedImages.length > 0) {
-            const imagesToEdit = attachedImages.map(img => ({ data: img.data, mimeType: img.file.type }));
-            resultImage = await editImage(message, imagesToEdit);
-        } else {
-            resultImage = await generateImageFromText(message, settings);
-        }
+        // FIX: The `parts` array can contain both image and text parts, so the type should be a union of part types.
+        const parts: ({ inlineData: { data: string; mimeType: string; } } | { text: string })[] = [];
 
-        // Update bot message with the generated image
-        setHistory(prev => prev.map(item => 
-            item.id === botMessageId ? { ...item, type: 'bot', isLoading: false, imageUrl: resultImage } : item
-        ));
+        if (attachedImages.length > 0) {
+            const imageParts = attachedImages.map(img => ({
+                inlineData: {
+                    data: img.data,
+                    mimeType: img.file.type,
+                },
+            }));
+            parts.push(...imageParts);
+        }
+        parts.push({ text: message });
+
+        // FIX: The `sendMessage` expects the array of parts directly in the `message` property.
+        const response = await currentChat.sendMessage({ message: parts });
+
+        let resultImage: string | undefined;
+        let resultText: string | undefined;
+
+        for (const part of response.candidates?.[0]?.content?.parts || []) {
+            if (part.inlineData) {
+                resultImage = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+            } else if (part.text) {
+                resultText = part.text;
+            }
+        }
+        
+        if (resultImage || resultText) {
+            setHistory(prev => prev.map(item => 
+                item.id === botMessageId 
+                ? { ...item, type: 'bot', isLoading: false, imageUrl: resultImage, text: resultText } 
+                : item
+            ));
+        } else {
+            throw new Error("The AI did not return a valid response.");
+        }
 
     } catch (e: any) {
         console.error(e);
         const errorMessage = e.message || "Sorry, I couldn't process that. Please try again.";
-        // Update bot message with an error
         setHistory(prev => prev.map(item => 
             item.id === botMessageId ? { ...item, type: 'bot', isLoading: false, text: errorMessage } : item
         ));
@@ -401,6 +451,7 @@ const App: React.FC = () => {
         </div>
         <nav className="flex items-center space-x-2 bg-gray-900 p-1 rounded-lg">
             <NavButton page="create">Create</NavButton>
+            {/* FIX: Corrected closing tag from Nav-Button to NavButton */}
             <NavButton page="explore">Explore</NavButton>
         </nav>
       </header>
