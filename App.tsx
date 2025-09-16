@@ -3,6 +3,13 @@ import { CameraPreset, GenerationSettings, HistoryItem, UserImage, Page, AspectR
 import { fileToBase64, createChatSession } from './services/geminiService';
 import type { Chat } from '@google/genai';
 
+// Extend the Window interface to include JSZip
+declare global {
+    interface Window {
+        JSZip: any;
+    }
+}
+
 
 // -- CONSTANTS --
 const CAMERA_PRESETS: CameraPreset[] = [
@@ -82,6 +89,7 @@ const ICONS = {
   menu: 'M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5',
   edit: 'M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10',
   palette: 'M12 3.75a.75.75 0 01.75.75v.008l.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.007.008h-.007v-.008l-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008A.75.75 0 0112 3.75zM12 5.25a.75.75 0 01.75.75v.008l.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.007.008h-.007v-.008l-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008A.75.75 0 0112 5.25zm0 1.5a.75.75 0 01.75.75v.008l.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.007.008h-.007v-.008l-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008A.75.75 0 0112 6.75zM12 15a.75.75 0 01.75.75v.008l.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.007.008h-.007v-.008l-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008A.75.75 0 0112 15z M3.055 11.23a.75.75 0 010-1.06l4.242-4.243a.75.75 0 011.061 0l4.243 4.243a.75.75 0 010 1.06l-4.243 4.243a.75.75 0 01-1.06 0L3.055 11.23z',
+  code: 'M6.75 7.5 3 12l3.75 4.5M17.25 7.5 21 12l-3.75 4.5',
 };
 
 // -- DYNAMIC BACKGROUND COMPONENT --
@@ -146,7 +154,7 @@ const BotMessageCard: React.FC<{ item: BotHistoryItem; onDelete: () => void; }> 
         return (
              <div className="flex justify-start mr-10">
                 <div className="bg-[var(--color-surface-2)] rounded-xl p-3 max-w-2xl">
-                    <p className="text-[var(--color-text-primary)]/80 text-sm whitespace-pre-wrap">{item.text}</p>
+                    <p className="text-[var(--color-text-primary)]/80 text-sm whitespace-pre-wrap">{item.text.replace(/\*/g, '')}</p>
                 </div>
             </div>
         )
@@ -170,7 +178,7 @@ const BotMessageCard: React.FC<{ item: BotHistoryItem; onDelete: () => void; }> 
                     <img src={item.imageUrl} alt={item.prompt} className="w-full h-auto rounded-lg" />
                      {item.text && (
                         <div className="p-2 border-t border-[var(--color-border)] mt-1.5">
-                           <p className="text-sm text-[var(--color-text-secondary)] font-light line-clamp-3 whitespace-pre-wrap">{item.text}</p>
+                           <p className="text-sm text-[var(--color-text-secondary)] font-light line-clamp-3 whitespace-pre-wrap">{item.text.replace(/\*/g, '')}</p>
                         </div>
                      )}
                     
@@ -701,8 +709,15 @@ const App: React.FC = () => {
     const botMessageId = userMessageId + 1;
     
     const isImageTask = attachedImages.length > 0 || /create|generate|make|draw|edit|change|render|imagine/i.test(message);
+    
+    const currentDate = new Date().toLocaleDateString(undefined, {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+    });
 
-    let systemPreamble = `You are Prompta, a multi-talented AI creative assistant. Your primary role is to help users generate and edit stunning visuals. You are also a helpful partner, capable of answering general questions (like 'what is today?'), brainstorming ideas, writing captions for images, and refining user prompts to be more effective. Be friendly, creative, and always aim to be as helpful as possible. Never use the phrase 'I do not have access to real-time information'.`;
+    let systemPreamble = `You are Prompta, a multi-talented AI creative assistant. Your primary role is to help users generate and edit stunning visuals. You are also a helpful partner, capable of answering general questions, brainstorming ideas, writing captions for images, and refining user prompts to be more effective. Be friendly, creative, and always aim to be as helpful as possible. For your reference, the current date is ${currentDate}.`;
     
     if (isImageTask) {
         systemPreamble += ` When generating or editing an image, you MUST strictly conform to the user's specified aspect ratio: **${aspectRatio} (${ASPECT_RATIO_OPTIONS.find(o => o.name === aspectRatio)?.ratio})**.`;
@@ -738,7 +753,7 @@ const App: React.FC = () => {
         const response = await currentChat.sendMessage({ message: parts });
 
         let resultImage: string | undefined;
-        const resultText = response.text;
+        const resultText = response.text ? response.text : undefined;
         for (const part of response.candidates?.[0]?.content?.parts || []) {
             if (part.inlineData) resultImage = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
         }
@@ -755,6 +770,234 @@ const App: React.FC = () => {
         setSessions(prevSessions => prevSessions.map(s => s.id === activeSessionId ? { ...s, history: s.history.map(item => item.id === botMessageId ? errorResponse : item) } : s));
     }
   };
+  
+    const handleExportProject = async () => {
+        if (!window.JSZip) {
+            alert("Could not find the JSZip library. Please try again.");
+            return;
+        }
+        const zip = new window.JSZip();
+        
+        // Define file contents
+        const indexHtmlContent = `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Prompta: The Ultimate Vision Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+      body {
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+          background-color: var(--color-bg);
+          color: var(--color-text-primary);
+      }
+      
+      /* --- Dynamic Background Keyframes --- */
+      @keyframes nebula-scroll {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+
+      @keyframes float {
+        0% { transform: translateY(0px); opacity: 0; }
+        25% { opacity: 0.7; }
+        50% { transform: translateY(-500px); opacity: 1; }
+        75% { opacity: 0.7; }
+        100% { transform: translateY(-1000px); opacity: 0; }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.19.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>`;
+        
+        const indexTsxContent = `import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+
+const rootElement = document.getElementById('root');
+if (!rootElement) {
+  throw new Error("Could not find root element to mount to");
+}
+
+const root = ReactDOM.createRoot(rootElement);
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);`;
+
+        const metadataJsonContent = `{
+  "name": "Prompta: The Ultimate Vision Studio",
+  "description": "An AI-powered vision studio that brings your creative prompts to life with unparalleled speed, control, and photorealism. Generate and edit flawless, high-resolution visuals using cutting-edge Google AI.",
+  "requestFramePermissions": []
+}`;
+        const typesTsContent = `export interface CameraPreset {
+  name: string;
+  prompt: string;
+}
+
+export interface IdeaHook {
+  id: number;
+  prompt: string;
+  imageUrl: string;
+}
+
+export interface GenerationSettings {
+    aspectRatio: '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
+    camera: CameraPreset | null;
+    seed: string;
+}
+
+export type FileType = 'jpeg' | 'png' | 'webp' | 'tiff';
+export type ColorProfile = 'sRGB' | 'Adobe RGB' | 'ProPhoto RGB';
+export type AspectRatio = 'Square' | 'Portrait' | 'Landscape';
+
+export interface ExportSettings {
+    fileType: FileType;
+    quality: number; // 0-1 for jpeg/webp
+    colorProfile: ColorProfile;
+}
+
+// Represents an image file attached by the user.
+export interface UserImage {
+    data: string; // base64 encoded
+    file: File;
+}
+
+// Represents a message sent by the user.
+export interface UserHistoryItem {
+    type: 'user';
+    id: number;
+    text: string;
+    images: UserImage[];
+}
+
+// Represents a response from the AI.
+export interface BotHistoryItem {
+    type: 'bot';
+    id: number;
+    prompt?: string;
+    imageUrl?: string;
+    text?: string; // For errors or text responses
+    isLoading?: boolean;
+}
+
+export type HistoryItem = UserHistoryItem | BotHistoryItem;
+
+export type Page = 'create' | 'explore';
+
+export interface Session {
+    id: number;
+    title: string;
+    date: string; // ISO String for consistent date handling
+    history: HistoryItem[];
+}
+
+export interface Theme {
+    id: string;
+    name: string;
+    className: string;
+    styles: React.CSSProperties;
+}`;
+
+        const geminiServiceTsContent = `import { GoogleGenAI, Modality, Chat } from "@google/genai";
+
+if (!process.env.API_KEY) {
+    throw new Error("API_KEY environment variable not set");
+}
+
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+export const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = error => reject(error);
+    });
+};
+
+export const createChatSession = (): Chat => {
+    return ai.chats.create({
+        model: 'gemini-2.5-flash-image-preview',
+        // The config is the same as the models.generateContent config.
+        config: {
+            responseModalities: [Modality.IMAGE, Modality.TEXT],
+        },
+    });
+};`;
+        
+        // FIX: Removed escaping backslashes from the template literal definition.
+        const readmeMdContent = `# Prompta AI Vision Studio
+
+This is the code for the Prompta AI Vision Studio application, generated for you to push to your own Git repository.
+
+## How to use this code
+
+This project consists of a single \`index.html\` file that loads a React application via ES modules. All the necessary dependencies are loaded from a CDN, and it's configured to use the \`process.env.API_KEY\` provided by its hosting environment.
+
+## Pushing to GitHub
+
+You can now use these files to create your own Git repository.
+
+1.  Create a new repository on [GitHub](https://github.com/new).
+2.  Unzip the downloaded folder.
+3.  Follow the instructions provided by GitHub to "push an existing repository from the command line":
+
+    \`\`\`bash
+    # Navigate to the unzipped folder in your terminal
+    cd path/to/your/project
+
+    # Initialize a new git repository
+    git init -b main
+    git add .
+    git commit -m "Initial commit of Prompta AI Studio"
+
+    # Add your GitHub repository as a remote and push
+    git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPOSITORY.git
+    git push -u origin main
+    \`\`\`
+
+That's it! Your code is now on GitHub.
+`;
+        
+        const appTsxContent = document.querySelector('script[src="/index.tsx"]')?.innerHTML || (await (await fetch(window.location.origin + '/App.tsx')).text());
+
+        zip.file("index.html", indexHtmlContent);
+        zip.file("index.tsx", indexTsxContent);
+        zip.file("App.tsx", appTsxContent);
+        zip.file("types.ts", typesTsContent);
+        zip.file("services/geminiService.ts", geminiServiceTsContent);
+        zip.file("metadata.json", metadataJsonContent);
+        zip.file("README.md", readmeMdContent);
+
+        zip.generateAsync({ type: "blob" }).then(function(content: Blob) {
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(content);
+            link.download = "prompta-project.zip";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+    };
+
 
   const NavButton: React.FC<{ page: Page, children: React.ReactNode }> = ({ page, children }) => (
       <button
@@ -786,6 +1029,13 @@ const App: React.FC = () => {
             <span className="ml-2 text-xs bg-[var(--color-primary)]/20 text-[var(--color-primary)] font-mono px-2 py-0.5 rounded-full">AI</span>
         </div>
         <div className="flex items-center space-x-2">
+            <button
+                onClick={handleExportProject}
+                className="p-2 rounded-full text-[var(--color-text-secondary)] hover:text-white transition-colors bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)]"
+                aria-label="Export project code"
+            >
+                <Icon path={ICONS.code} className="w-5 h-5" />
+            </button>
             <div className="relative" ref={themeMenuRef}>
                 <button 
                     onClick={() => setIsThemeMenuOpen(!isThemeMenuOpen)}
