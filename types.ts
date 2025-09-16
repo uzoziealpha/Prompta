@@ -17,6 +17,7 @@ export interface GenerationSettings {
 
 export type FileType = 'jpeg' | 'png' | 'webp' | 'tiff';
 export type ColorProfile = 'sRGB' | 'Adobe RGB' | 'ProPhoto RGB';
+export type AspectRatio = 'Square' | 'Portrait' | 'Landscape';
 
 export interface ExportSettings {
     fileType: FileType;
