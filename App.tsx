@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { CameraPreset, GenerationSettings, HistoryItem, UserImage, Page, AspectRatio, BotHistoryItem, UserHistoryItem } from './types';
 import { fileToBase64, createChatSession } from './services/geminiService';
@@ -495,8 +496,12 @@ const App: React.FC = () => {
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    handleFiles(e.clipboardData.files);
+    // Only intercept and handle the paste event if there are image files on the clipboard.
+    if (e.clipboardData.files && e.clipboardData.files.length > 0) {
+      e.preventDefault();
+      handleFiles(e.clipboardData.files);
+    }
+    // Otherwise, allow the default browser behavior (pasting text into the input).
   };
 
   const handleAiSubmit = async () => {
@@ -512,8 +517,9 @@ const App: React.FC = () => {
     const userMessageId = Date.now();
     const botMessageId = userMessageId + 1;
     
-    // Determine if the request is for image generation or just a chat.
+    // Determine the user's intent.
     const isImageTask = attachedImages.length > 0 || /create|generate|make|draw|edit|change|render|imagine/i.test(message);
+    const isIdeaTask = /idea|inspire|suggest|recommend/i.test(message) && !isImageTask;
 
     let systemPreamble = `You are Prompta, a friendly and intelligent AI vision assistant. Your goal is to help users bring their creative ideas to life. Be helpful, concise, and inspiring.`;
     
@@ -523,6 +529,8 @@ const App: React.FC = () => {
 - **Analyze & Execute**: Carefully analyze both the text prompt and any attached images.
 - **Aspect Ratio Priority**: The user has specified a desired aspect ratio of **${aspectRatio} (${ASPECT_RATIO_OPTIONS.find(o => o.name === aspectRatio)?.ratio})**. All generated or edited images MUST strictly conform to this aspect ratio. If editing, this may require cropping, extending, or reframing the image content.
 - **Identify Properties**: If asked, accurately identify an image's properties, including its current aspect ratio.`;
+    } else if (isIdeaTask) {
+        systemPreamble += ` Your primary role is to be a creative partner. Analyze the conversation history, especially the most recent images, to provide insightful and relevant ideas, suggestions, or new creative prompts for the user. Respond with text only.`;
     }
 
     let userInstruction = message;
@@ -567,16 +575,17 @@ const App: React.FC = () => {
             throw new Error("Cannot send an empty message.");
         }
 
+        // FIX: The argument to sendMessage must be an object with a `message` property.
         const response = await currentChat.sendMessage({ message: parts });
 
         let resultImage: string | undefined;
-        let resultText: string | undefined;
+        // FIX: Use `response.text` for simpler text extraction, as recommended by guidelines.
+        const resultText = response.text;
 
+        // Loop through parts to find image data.
         for (const part of response.candidates?.[0]?.content?.parts || []) {
             if (part.inlineData) {
                 resultImage = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-            } else if (part.text) {
-                resultText = part.text;
             }
         }
         
@@ -587,15 +596,14 @@ const App: React.FC = () => {
                 : item
             ));
         } else {
-            // Handle cases where AI responds with text but no image for an image task
-             if (isImageTask && !resultImage) {
-                 resultText = resultText ? `AI: ${resultText}` : "The AI responded, but did not generate an image. Please try rephrasing your request.";
-            } else if (!resultText) {
-                 throw new Error("The AI did not return a valid response.");
+            // Handle cases where the AI gives a completely empty response.
+            let errorMessage = "The AI did not return a valid response.";
+             if (isImageTask) {
+                errorMessage = "The AI responded, but did not generate an image. Please try rephrasing your request.";
             }
              setHistory(prev => prev.map(item =>
                 item.id === botMessageId
-                ? { ...item, type: 'bot', isLoading: false, text: resultText, prompt: message }
+                ? { ...item, type: 'bot', isLoading: false, text: errorMessage, prompt: message }
                 : item
             ));
         }
@@ -631,6 +639,7 @@ const App: React.FC = () => {
         </div>
         <nav className="flex items-center space-x-2 bg-gray-900 p-1 rounded-lg">
             <NavButton page="create">Create</NavButton>
+            {/* FIX: Corrected typo in closing tag from Nav-Button to NavButton */}
             <NavButton page="explore">Explore</NavButton>
         </nav>
       </header>
