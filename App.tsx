@@ -1,5 +1,6 @@
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { CameraPreset, GenerationSettings, HistoryItem, UserImage, Page, AspectRatio, BotHistoryItem } from './types';
+import { CameraPreset, GenerationSettings, HistoryItem, UserImage, Page, AspectRatio, BotHistoryItem, UserHistoryItem } from './types';
 import { fileToBase64, createChatSession } from './services/geminiService';
 import type { Chat } from '@google/genai';
 
@@ -62,79 +63,92 @@ const ICONS = {
 
 // -- HELPER COMPONENTS --
 
-const Loader: React.FC<{ isInline?: boolean }> = ({ isInline = false }) => {
-    const [message, setMessage] = useState(LOADING_MESSAGES[0]);
+const UserMessageCard: React.FC<{ item: UserHistoryItem }> = ({ item }) => (
+  <div className="flex justify-end ml-10">
+    <div className="bg-purple-600 text-white rounded-xl p-3 max-w-2xl">
+      {item.text && <p className="text-white/90">{item.text}</p>}
+      {item.images.length > 0 && (
+        <div className={`flex flex-wrap gap-2 ${item.text ? 'mt-2' : ''}`}>
+          {item.images.map((img, index) => (
+            <img 
+              key={index} 
+              src={URL.createObjectURL(img.file)} 
+              className="w-24 h-24 rounded-md object-cover" 
+              alt={`user attachment ${index + 1}`} 
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
+);
 
-    useEffect(() => {
-        const intervalId = setInterval(() => {
-            setMessage(prevMessage => {
-                const currentIndex = LOADING_MESSAGES.indexOf(prevMessage);
-                const nextIndex = (currentIndex + 1) % LOADING_MESSAGES.length;
-                return LOADING_MESSAGES[nextIndex];
-            });
-        }, 2000);
-
-        return () => clearInterval(intervalId);
-    }, []);
-
-    if (isInline) {
+const BotMessageCard: React.FC<{ item: BotHistoryItem; onDelete: () => void; }> = ({ item, onDelete }) => {
+    if (item.isLoading) {
         return (
-            <div className="flex flex-col items-center justify-center p-8 bg-gray-800 rounded-xl aspect-square">
-                <div className="w-12 h-12 border-4 border-t-purple-500 border-gray-700 rounded-full animate-spin"></div>
-                <p className="mt-4 text-xs text-center text-gray-400 font-mono tracking-wider">{message}</p>
+            <div className="flex justify-start mr-10">
+                <div className="bg-gray-800 rounded-xl p-4 max-w-lg inline-block w-64 h-64 flex flex-col items-center justify-center">
+                     <div className="w-12 h-12 border-4 border-t-purple-500 border-gray-700 rounded-full animate-spin"></div>
+                     <p className="mt-4 text-xs text-center text-gray-400 font-mono tracking-wider">{item.prompt}</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (item.text && !item.imageUrl) { // Error or text-only response
+        return (
+             <div className="flex justify-start mr-10">
+                <div className="bg-gray-800 rounded-xl p-3 max-w-2xl">
+                    <p className="text-white/80 text-sm">{item.text}</p>
+                </div>
+            </div>
+        )
+    }
+    
+    if (item.imageUrl) {
+        const handleDownload = () => {
+            const link = document.createElement('a');
+            link.href = item.imageUrl!;
+            const safePrompt = (item.prompt || '').substring(0, 40).replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            const fileExtension = item.imageUrl!.split(';')[0].split('/')[1] || 'jpeg';
+            link.download = `prompta_${safePrompt || 'vision'}.${fileExtension}`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+        
+        return (
+             <div className="flex justify-start mr-10">
+                <div className="bg-gray-800 rounded-xl p-1.5 max-w-2xl group relative inline-block">
+                    <img src={item.imageUrl} alt={item.prompt} className="w-full h-auto rounded-lg" />
+                     {item.prompt && (
+                        <div className="p-2">
+                           <p className="text-sm text-gray-300 font-light line-clamp-3">{item.prompt}</p>
+                        </div>
+                     )}
+                    
+                    <div className="absolute top-3 right-3 flex flex-col space-y-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                       <button
+                           onClick={onDelete}
+                           className="bg-black/50 p-2 rounded-full text-white hover:bg-red-500/80 backdrop-blur-sm"
+                           aria-label="Delete image"
+                       >
+                           <Icon path={ICONS.trash} className="w-5 h-5" />
+                       </button>
+                       <button
+                           onClick={handleDownload}
+                           className="bg-black/50 p-2 rounded-full text-white hover:bg-purple-500/80 backdrop-blur-sm"
+                           aria-label="Download image"
+                       >
+                           <Icon path={ICONS.download} className="w-5 h-5" />
+                       </button>
+                    </div>
+                </div>
             </div>
         )
     }
 
-    return (
-        <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center backdrop-blur-md z-50">
-            <div className="w-16 h-16 border-4 border-t-purple-500 border-gray-800 rounded-full animate-spin"></div>
-            <p className="mt-4 text-sm text-gray-300 font-mono tracking-wider">{message}</p>
-        </div>
-    );
-};
-
-interface GeneratedImageCardProps {
-    imageUrl: string;
-    prompt: string;
-    onDelete: () => void;
-}
-const GeneratedImageCard: React.FC<GeneratedImageCardProps> = ({ imageUrl, prompt, onDelete }) => {
-    const handleDownload = () => {
-        const link = document.createElement('a');
-        link.href = imageUrl;
-        const safePrompt = prompt.substring(0, 40).replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        const fileExtension = imageUrl.split(';')[0].split('/')[1] || 'jpeg';
-        link.download = `prompta_${safePrompt || 'vision'}.${fileExtension}`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
-    
-    return (
-        <div className="bg-gray-800 rounded-xl overflow-hidden group relative">
-            <img src={imageUrl} alt={prompt} className="w-full h-auto aspect-square object-cover" />
-             <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
-                <p className="text-sm text-gray-200 font-light line-clamp-3">{prompt}</p>
-            </div>
-             <div className="absolute top-2 right-2 flex flex-col space-y-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                    onClick={onDelete}
-                    className="bg-black/50 p-2 rounded-full text-white hover:bg-red-500/80 backdrop-blur-sm"
-                    aria-label="Delete image"
-                >
-                    <Icon path={ICONS.trash} className="w-5 h-5" />
-                </button>
-                <button
-                    onClick={handleDownload}
-                    className="bg-black/50 p-2 rounded-full text-white hover:bg-purple-500/80 backdrop-blur-sm"
-                    aria-label="Download image"
-                >
-                    <Icon path={ICONS.download} className="w-5 h-5" />
-                </button>
-            </div>
-        </div>
-    );
+    return null;
 };
 
 const CreatePage: React.FC<{
@@ -178,18 +192,13 @@ const CreatePage: React.FC<{
     const historyContainerRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const menuContainerRef = useRef<HTMLDivElement>(null);
-
-    const generatedImages = history.filter(
-        (item): item is BotHistoryItem => item.type === 'bot' && !!item.imageUrl
-    );
-    const isLoading = history.some(item => item.type === 'bot' && item.isLoading);
     const selectedAspectRatio = ASPECT_RATIO_OPTIONS.find(opt => opt.name === aspectRatio);
 
     useEffect(() => {
         if (historyContainerRef.current) {
             historyContainerRef.current.scrollTop = historyContainerRef.current.scrollHeight;
         }
-    }, [generatedImages.length, isLoading]);
+    }, [history.length]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -213,22 +222,22 @@ const CreatePage: React.FC<{
                 </div>
             )}
             <main ref={historyContainerRef} className="flex-grow overflow-y-auto min-h-0 p-4">
-                {generatedImages.length === 0 && !isLoading && (
-                    <div className="flex flex-col items-center justify-center h-full text-center text-gray-600">
-                        <p className="font-semibold text-lg">Your Generated Images</p>
-                        <p className="text-sm">Creations from your prompts will appear here.</p>
+                {history.length === 0 && (
+                     <div className="flex flex-col items-center justify-center h-full text-center text-gray-600">
+                        <p className="font-semibold text-lg">Your Conversation with Prompta</p>
+                        <p className="text-sm">Your prompts and the AI's creations will appear here.</p>
                     </div>
                 )}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                     {generatedImages.map((item) => (
-                        <GeneratedImageCard
-                            key={item.id}
-                            imageUrl={item.imageUrl!}
-                            prompt={item.prompt || 'Generated Image'}
-                            onDelete={() => handleDeleteHistoryItem(item.id)}
-                        />
-                    ))}
-                    {isLoading && <Loader isInline={true} />}
+                 <div className="flex flex-col space-y-6">
+                    {history.map((item) => {
+                        if (item.type === 'user') {
+                            return <UserMessageCard key={item.id} item={item} />;
+                        }
+                        if (item.type === 'bot') {
+                            return <BotMessageCard key={item.id} item={item} onDelete={() => handleDeleteHistoryItem(item.id)} />;
+                        }
+                        return null;
+                    })}
                 </div>
             </main>
             <div className="flex-shrink-0 p-4 bg-black border-t border-gray-900">
@@ -371,9 +380,22 @@ const App: React.FC = () => {
     try {
       const savedHistoryJSON = localStorage.getItem('prompta-history');
       if (savedHistoryJSON) {
-        const savedHistory: HistoryItem[] = JSON.parse(savedHistoryJSON);
+        // FIX: The type `any[]` is used for `savedHistory` because legacy items from
+        // localStorage might not conform to the `HistoryItem` type (e.g., missing `type` property).
+        const savedHistory: any[] = JSON.parse(savedHistoryJSON);
         if (Array.isArray(savedHistory)) {
-          return savedHistory;
+          // Add backward compatibility for old format (only bot items)
+          // And ensure all items have a type.
+          // FIX: The mapping logic is made type-safe to correctly form a discriminated union.
+          // This prevents properties of `UserHistoryItem` from leaking into a `BotHistoryItem`.
+          return savedHistory.map((item: any): HistoryItem => {
+            if (item?.type === 'user') {
+              return item as UserHistoryItem;
+            }
+            // Treat as a bot item. Destructuring `images` out makes it a valid `BotHistoryItem`.
+            const { images, ...rest } = item || {};
+            return { ...rest, type: 'bot' };
+          });
         }
       }
     } catch (error) {
@@ -393,12 +415,8 @@ const App: React.FC = () => {
 
   useEffect(() => {
     try {
-      // Filter out user messages, loading states, and errors to only save successful image generations.
-      const persistableHistory = history.filter(
-        (item): item is BotHistoryItem => 
-          item.type === 'bot' && !!item.imageUrl && !item.isLoading
-      );
-      localStorage.setItem('prompta-history', JSON.stringify(persistableHistory));
+      // Save the entire history, including user messages.
+      localStorage.setItem('prompta-history', JSON.stringify(history));
     } catch (error) {
       console.error("Failed to save history to local storage:", error);
     }
@@ -494,27 +512,34 @@ const App: React.FC = () => {
     const userMessageId = Date.now();
     const botMessageId = userMessageId + 1;
     
-    const systemPreamble = `You are Prompta, an expert AI vision assistant. Your role is to generate and edit images based on user requests, with a deep understanding of creative and technical specifications like aspect ratio.
+    // Determine if the request is for image generation or just a chat.
+    const isImageTask = attachedImages.length > 0 || /create|generate|make|draw|edit|change|render|imagine/i.test(message);
+
+    let systemPreamble = `You are Prompta, a friendly and intelligent AI vision assistant. Your goal is to help users bring their creative ideas to life. Be helpful, concise, and inspiring.`;
+    
+    if (isImageTask) {
+        systemPreamble += ` Your primary role is to generate and edit images with a deep understanding of creative and technical specifications.
 
 - **Analyze & Execute**: Carefully analyze both the text prompt and any attached images.
 - **Aspect Ratio Priority**: The user has specified a desired aspect ratio of **${aspectRatio} (${ASPECT_RATIO_OPTIONS.find(o => o.name === aspectRatio)?.ratio})**. All generated or edited images MUST strictly conform to this aspect ratio. If editing, this may require cropping, extending, or reframing the image content.
 - **Identify Properties**: If asked, accurately identify an image's properties, including its current aspect ratio.`;
+    }
 
     let userInstruction = message;
 
     // Handle image-only request with a specific aspect ratio by creating a default instruction.
-    if (!userInstruction && attachedImages.length > 0 && aspectRatio !== 'Square') {
-        userInstruction = `Please change the aspect ratio of the provided image to ${aspectRatio}.`;
+    if (!userInstruction && attachedImages.length > 0) {
+        userInstruction = `Please perform the most logical edit based on the attached image(s). If an aspect ratio is selected (${aspectRatio}), prioritize resizing the image.`;
     }
 
     const finalMessage = userInstruction 
         ? `${systemPreamble}\n\n--- USER REQUEST ---\n${userInstruction}` 
-        : '';
+        : systemPreamble;
 
     setHistory(prev => [
         ...prev,
         { type: 'user', id: userMessageId, text: message, images: attachedImages },
-        { type: 'bot', id: botMessageId, isLoading: true, prompt: message || `Edit image to ${aspectRatio}` }
+        { type: 'bot', id: botMessageId, isLoading: true, prompt: message || `Processing image...` }
     ]);
     
     setAiCommunication('');
@@ -562,7 +587,17 @@ const App: React.FC = () => {
                 : item
             ));
         } else {
-            throw new Error("The AI did not return a valid response.");
+            // Handle cases where AI responds with text but no image for an image task
+             if (isImageTask && !resultImage) {
+                 resultText = resultText ? `AI: ${resultText}` : "The AI responded, but did not generate an image. Please try rephrasing your request.";
+            } else if (!resultText) {
+                 throw new Error("The AI did not return a valid response.");
+            }
+             setHistory(prev => prev.map(item =>
+                item.id === botMessageId
+                ? { ...item, type: 'bot', isLoading: false, text: resultText, prompt: message }
+                : item
+            ));
         }
 
     } catch (e: any) {
