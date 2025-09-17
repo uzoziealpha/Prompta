@@ -17,10 +17,7 @@ export const fileToBase64 = (file: File): Promise<string> => {
 
 export const createChatSession = (): Chat => {
     return ai.chats.create({
-        model: 'gemini-2.5-flash-image-preview',
-        // The config is the same as the models.generateContent config.
-        config: {
-            responseModalities: [Modality.IMAGE, Modality.TEXT],
-        },
+        // FIX: The model 'gemini-2.5-flash-image-preview' is specifically for image editing. For a chat that can handle both text and images, 'gemini-2.5-flash' is more appropriate and versatile. The responseModalities config is not needed for this model.
+        model: 'gemini-2.5-flash',
     });
 };

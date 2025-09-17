@@ -1,6 +1,8 @@
 import React from 'react';
-import { Session } from '../types';
-import { ICONS } from '../constants';
+// FIX: Corrected import path to point to types/index.ts to avoid conflict with empty types.ts at root
+import { Session } from '../types/index';
+// FIX: Corrected import path to point to constants/index.ts to avoid conflict with empty constants.ts at root
+import { ICONS } from '../constants/index';
 import { Icon } from './Icon';
 
 export const Sidebar: React.FC<{

@@ -1,9 +1,12 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import type { Chat } from '@google/ai/generativelanguage';
-import { HistoryItem, UserImage, Page, AspectRatio, BotHistoryItem, UserHistoryItem, Session, Theme, User } from './types';
+// FIX: Corrected Chat type import to be a value import as per @google/genai guidelines.
+import { Chat } from '@google/genai';
+// FIX: Corrected import path to point to types/index.ts to avoid conflict with empty types.ts file
+import { HistoryItem, UserImage, Page, AspectRatio, BotHistoryItem, UserHistoryItem, Session, Theme, User } from './types/index';
 import { fileToBase64, createChatSession } from './services/geminiService';
 
-import { ICONS, THEMES } from './constants';
+// FIX: Corrected import path to point to constants/index.ts to avoid conflict with empty constants.ts file
+import { ICONS, THEMES } from './constants/index';
 import { Icon } from './components/Icon';
 import { DynamicBackground } from './components/DynamicBackground';
 import { AuthModal } from './components/AuthModal';
@@ -42,7 +45,6 @@ const App: React.FC = () => {
   const themeMenuRef = useRef<HTMLDivElement>(null);
   
   const [user, setUser] = useState<User | null>(null);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -69,7 +71,6 @@ const App: React.FC = () => {
 
   const handleLoginSuccess = (loggedInUser: User) => {
     setUser(loggedInUser);
-    setIsAuthModalOpen(false);
   };
 
   const handleLogout = () => {
@@ -116,6 +117,7 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (!user) return; // Don't load sessions if not logged in
     try {
         const savedSessionsJSON = localStorage.getItem('prompta-sessions');
         const savedActiveId = localStorage.getItem('prompta-active-session-id');
@@ -137,7 +139,7 @@ const App: React.FC = () => {
         console.error("Failed to load sessions:", e);
     }
     handleNewChat();
-  }, [handleNewChat]);
+  }, [handleNewChat, user]);
 
   useEffect(() => {
     if (sessions.length > 0) {
@@ -285,11 +287,6 @@ const App: React.FC = () => {
   };
 
   const handleAiSubmit = async () => {
-    if (!user) {
-      setIsAuthModalOpen(true);
-      return;
-    }
-
     const message = aiCommunication.trim();
     if ((!message && attachedImages.length === 0) || !activeSessionId) return;
 
@@ -329,10 +326,12 @@ const App: React.FC = () => {
         if (attachedImages.length > 0) parts.push(...attachedImages.map(img => ({ inlineData: { data: img.data, mimeType: img.file.type } })));
         if (finalMessage) parts.push({ text: finalMessage });
         
-        const response = await currentChat.sendMessage({ message: { parts } });
+        // FIX: The `chat.sendMessage` payload's `message` property should be an array of Parts for multipart content, not an object containing a `parts` array.
+        const response = await currentChat.sendMessage({ message: parts });
 
         let resultImage: string | undefined;
-        const resultText = response.text ? response.text : undefined;
+        const resultText = response.text;
+        // FIX: The response object is `GenerateContentResponse`, so candidates are at `response.candidates`, not `response.response.candidates`.
         for (const part of response.candidates?.[0]?.content?.parts || []) {
             if (part.inlineData) resultImage = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
         }
@@ -351,10 +350,6 @@ const App: React.FC = () => {
   };
   
   const handleCreateVariations = async (originalPrompt: string, imageUrl: string) => {
-    if (!user) {
-      setIsAuthModalOpen(true);
-      return;
-    }
     if (!activeSessionId) return;
 
     // 1. Convert data URL back into a UserImage object
@@ -388,10 +383,12 @@ const App: React.FC = () => {
             { text: finalMessage }
         ];
         
-        const response = await currentChat.sendMessage({ message: { parts } });
+        // FIX: The `chat.sendMessage` payload's `message` property should be an array of Parts for multipart content, not an object containing a `parts` array.
+        const response = await currentChat.sendMessage({ message: parts });
 
         let resultImage: string | undefined;
-        const resultText = response.text ? response.text : undefined;
+        const resultText = response.text;
+        // FIX: The response object is `GenerateContentResponse`, so candidates are at `response.candidates`, not `response.response.candidates`.
         for (const part of response.candidates?.[0]?.content?.parts || []) {
             if (part.inlineData) resultImage = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
         }
@@ -416,30 +413,36 @@ const App: React.FC = () => {
         }
         const zip = new window.JSZip();
         
-        // This function would ideally fetch all current files to create an accurate zip.
-        // For simplicity in this environment, it will use static content matching the current app state.
-        const fileContents: { [key: string]: string | Promise<string> } = {
-          "index.html": (await (await fetch(window.location.origin + '/index.html')).text()),
-          "index.tsx": (await (await fetch(window.location.origin + '/index.tsx')).text()),
-          "App.tsx": (await (await fetch(window.location.origin + '/App.tsx')).text()),
-          "types.ts": (await (await fetch(window.location.origin + '/types.ts')).text()),
-          "constants.ts": (await (await fetch(window.location.origin + '/constants.ts')).text()),
-          "services/geminiService.ts": (await (await fetch(window.location.origin + '/services/geminiService.ts')).text()),
-          "metadata.json": (await (await fetch(window.location.origin + '/metadata.json')).text()),
-          "components/Icon.tsx": (await (await fetch(window.location.origin + '/components/Icon.tsx')).text()),
-          "components/DynamicBackground.tsx": (await (await fetch(window.location.origin + '/components/DynamicBackground.tsx')).text()),
-          "components/MessageCards.tsx": (await (await fetch(window.location.origin + '/components/MessageCards.tsx')).text()),
-          "components/AuthModal.tsx": (await (await fetch(window.location.origin + '/components/AuthModal.tsx')).text()),
-          "components/Sidebar.tsx": (await (await fetch(window.location.origin + '/components/Sidebar.tsx')).text()),
-          "pages/CreatePage.tsx": (await (await fetch(window.location.origin + '/pages/CreatePage.tsx')).text()),
-          "pages/ExplorePage.tsx": (await (await fetch(window.location.origin + '/pages/ExplorePage.tsx')).text()),
-          "pages/AccountSettingsPage.tsx": (await (await fetch(window.location.origin + '/pages/AccountSettingsPage.tsx')).text()),
-          "README.md": `# Prompta AI Vision Studio\n\nThis zip contains the source code for your Prompta application. You can use these files to set up a local development environment or deploy to a hosting provider.`
-        };
+        const filePaths = [
+            "index.html",
+            "index.tsx",
+            "App.tsx",
+            "metadata.json",
+            "components/Icon.tsx",
+            "components/DynamicBackground.tsx",
+            "components/MessageCards.tsx",
+            "components/AuthModal.tsx",
+            "components/Sidebar.tsx",
+            "pages/CreatePage.tsx",
+            "pages/ExplorePage.tsx",
+            "pages/AccountSettingsPage.tsx",
+            "services/geminiService.ts",
+            "types/index.ts",
+            "constants/index.ts",
+        ];
 
-        for (const [path, content] of Object.entries(fileContents)) {
-            zip.file(path, await content);
+        for (const path of filePaths) {
+            try {
+                const response = await fetch(`${window.location.origin}/${path}`);
+                if (!response.ok) throw new Error(`Failed to fetch ${path}`);
+                const content = await response.text();
+                zip.file(path, content);
+            } catch (error) {
+                console.warn(error);
+            }
         }
+        
+        zip.file("README.md", `# Prompta AI Vision Studio\n\nThis zip contains the source code for your Prompta application. You can use these files to set up a local development environment or deploy to a hosting provider.`);
 
         zip.generateAsync({ type: "blob" }).then(function(content: Blob) {
             const link = document.createElement('a');
@@ -469,58 +472,61 @@ const App: React.FC = () => {
   return (
     <div className="h-screen w-screen bg-[var(--color-bg)] text-[var(--color-text-primary)] flex flex-col font-sans relative">
       <DynamicBackground theme={activeTheme} />
-      {isAuthModalOpen && <AuthModal onClose={() => setIsAuthModalOpen(false)} onLoginSuccess={handleLoginSuccess} />}
-      <header className="p-4 flex-shrink-0 flex items-center justify-between border-b border-[var(--color-border)] z-10 bg-[var(--color-surface-1)]/50 backdrop-blur-lg">
-        <div className="flex items-center">
-            <button
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="p-2 rounded-full text-[var(--color-text-secondary)] hover:text-white transition-all duration-300 mr-2 group relative border border-[var(--color-border)] hover:border-[var(--color-primary)]"
-                aria-label="Toggle session history"
-            >
-                <div className="absolute -inset-0.5 bg-[var(--color-primary)] rounded-full opacity-0 group-hover:opacity-30 blur-md transition-opacity"></div>
-                <Icon path={isSidebarOpen ? ICONS.close : ICONS.promptaLogo} className="w-6 h-6 transition-transform duration-300 group-hover:scale-110" />
-            </button>
-            <h1 className="text-xl font-bold tracking-tighter">Prompta</h1>
-            <span className="ml-2 text-xs bg-[var(--color-primary)]/20 text-[var(--color-primary)] font-mono px-2 py-0.5 rounded-full">AI</span>
-        </div>
-        <div className="flex items-center space-x-2">
-            <button
-                onClick={handleExportProject}
-                className="p-2 rounded-full text-[var(--color-text-secondary)] hover:text-white transition-colors bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)]"
-                aria-label="Export project code"
-            >
-                <Icon path={ICONS.code} className="w-5 h-5" />
-            </button>
-            <div className="relative" ref={themeMenuRef}>
-                <button 
-                    onClick={() => setIsThemeMenuOpen(!isThemeMenuOpen)}
-                    className="p-2 rounded-full text-[var(--color-text-secondary)] hover:text-white transition-colors bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)]"
-                    aria-label="Select theme"
+      
+      {!user ? (
+        <AuthModal onLoginSuccess={handleLoginSuccess} isGated={true} />
+      ) : (
+        <>
+          <header className="p-4 flex-shrink-0 flex items-center justify-between border-b border-[var(--color-border)] z-10 bg-[var(--color-surface-1)]/50 backdrop-blur-lg">
+            <div className="flex items-center">
+                <button
+                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    className="p-2 rounded-full text-[var(--color-text-secondary)] hover:text-white transition-all duration-300 mr-2 group relative border border-[var(--color-border)] hover:border-[var(--color-primary)]"
+                    aria-label="Toggle session history"
                 >
-                    <Icon path={ICONS.palette} className="w-5 h-5" />
+                    <div className="absolute -inset-0.5 bg-[var(--color-primary)] rounded-full opacity-0 group-hover:opacity-30 blur-md transition-opacity"></div>
+                    <Icon path={isSidebarOpen ? ICONS.close : ICONS.promptaLogo} className="w-6 h-6 transition-transform duration-300 group-hover:scale-110" />
                 </button>
-                {isThemeMenuOpen && (
-                    <div className="absolute top-full right-0 mt-2 w-48 bg-[var(--color-surface-3)] border border-[var(--color-border)] rounded-lg shadow-2xl z-20">
-                        {THEMES.map(theme => (
-                            <button
-                                key={theme.id}
-                                onClick={() => {
-                                    setActiveTheme(theme);
-                                    setIsThemeMenuOpen(false);
-                                }}
-                                className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between transition-colors ${
-                                    activeTheme.id === theme.id ? 'font-semibold text-white bg-[var(--color-primary)]' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)]'
-                                }`}
-                            >
-                                <span>{theme.name}</span>
-                                {activeTheme.id === theme.id && <Icon path={ICONS.check} className="w-4 h-4" />}
-                            </button>
-                        ))}
-                    </div>
-                )}
+                <h1 className="text-xl font-bold tracking-tighter">Prompta</h1>
+                <span className="ml-2 text-xs bg-[var(--color-primary)]/20 text-[var(--color-primary)] font-mono px-2 py-0.5 rounded-full">AI</span>
             </div>
-            <div className="w-px h-6 bg-[var(--color-border)] mx-2"></div>
-            {user ? (
+            <div className="flex items-center space-x-2">
+                <button
+                    onClick={handleExportProject}
+                    className="p-2 rounded-full text-[var(--color-text-secondary)] hover:text-white transition-colors bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)]"
+                    aria-label="Export project code"
+                >
+                    <Icon path={ICONS.code} className="w-5 h-5" />
+                </button>
+                <div className="relative" ref={themeMenuRef}>
+                    <button 
+                        onClick={() => setIsThemeMenuOpen(!isThemeMenuOpen)}
+                        className="p-2 rounded-full text-[var(--color-text-secondary)] hover:text-white transition-colors bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)]"
+                        aria-label="Select theme"
+                    >
+                        <Icon path={ICONS.palette} className="w-5 h-5" />
+                    </button>
+                    {isThemeMenuOpen && (
+                        <div className="absolute top-full right-0 mt-2 w-48 bg-[var(--color-surface-3)] border border-[var(--color-border)] rounded-lg shadow-2xl z-20">
+                            {THEMES.map(theme => (
+                                <button
+                                    key={theme.id}
+                                    onClick={() => {
+                                        setActiveTheme(theme);
+                                        setIsThemeMenuOpen(false);
+                                    }}
+                                    className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between transition-colors ${
+                                        activeTheme.id === theme.id ? 'font-semibold text-white bg-[var(--color-primary)]' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)]'
+                                    }`}
+                                >
+                                    <span>{theme.name}</span>
+                                    {activeTheme.id === theme.id && <Icon path={ICONS.check} className="w-4 h-4" />}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+                <div className="w-px h-6 bg-[var(--color-border)] mx-2"></div>
                 <div className="relative" ref={userMenuRef}>
                     <button onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}>
                         <img 
@@ -554,63 +560,60 @@ const App: React.FC = () => {
                          </div>
                     )}
                 </div>
-            ) : (
-                <button onClick={() => setIsAuthModalOpen(true)} className="px-4 py-1.5 text-sm font-semibold rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white transition-colors">
-                    Sign In
-                </button>
-            )}
-        </div>
-      </header>
-      <div className="flex flex-grow min-h-0">
-          <Sidebar
-              isOpen={isSidebarOpen}
-              sessions={sessions}
-              activeSessionId={activeSessionId}
-              onNewChat={handleNewChat}
-              onSelectSession={handleSelectSession}
-              onDeleteSession={handleDeleteSession}
-          />
-          <main className="flex-grow flex flex-col min-h-0">
-             <nav className="flex-shrink-0 px-4 pt-2">
-                <div className="flex items-center space-x-2 bg-[var(--color-surface-1)] p-1 rounded-lg max-w-min">
-                    <PageNavButton page="create">Create</PageNavButton>
-                    <PageNavButton page="explore">Explore</PageNavButton>
-                    {user && <PageNavButton page="settings">Settings</PageNavButton>}
-                </div>
-             </nav>
-             <div className="flex-grow min-h-0 p-4">
-                {activePage === 'create' ? (
-                    <CreatePage 
-                        history={history}
-                        setHistory={setHistory}
-                        aiCommunication={aiCommunication}
-                        setAiCommunication={setAiCommunication}
-                        attachedImages={attachedImages}
-                        setAttachedImages={setAttachedImages}
-                        handleFileChange={handleFileChange}
-                        handleAiSubmit={handleAiSubmit}
-                        handleCreateVariations={handleCreateVariations}
-                        aspectRatio={aspectRatio}
-                        setAspectRatio={setAspectRatio}
-                        isAspectRatioMenuOpen={isAspectRatioMenuOpen}
-                        setAspectRatioMenuOpen={setAspectRatioMenuOpen}
-                        isDragging={isDragging}
-                        handlePaste={handlePaste}
-                        dragHandlers={{ 
-                            onDragEnter: handleDragEnter, 
-                            onDragLeave: handleDragLeave, 
-                            onDragOver: handleDragOver, 
-                            onDrop: handleDrop 
-                        }}
-                    />
-                ) : activePage === 'explore' ? (
-                    <ExplorePage />
-                ) : user ? (
-                   <AccountSettingsPage user={user} onUpdateUser={handleUpdateUser} onAvatarChange={handleAvatarChange} />
-                ) : null}
-             </div>
-          </main>
-      </div>
+            </div>
+          </header>
+          <div className="flex flex-grow min-h-0">
+              <Sidebar
+                  isOpen={isSidebarOpen}
+                  sessions={sessions}
+                  activeSessionId={activeSessionId}
+                  onNewChat={handleNewChat}
+                  onSelectSession={handleSelectSession}
+                  onDeleteSession={handleDeleteSession}
+              />
+              <main className="flex-grow flex flex-col min-h-0">
+                 <nav className="flex-shrink-0 px-4 pt-2">
+                    <div className="flex items-center space-x-2 bg-[var(--color-surface-1)] p-1 rounded-lg max-w-min">
+                        <PageNavButton page="create">Create</PageNavButton>
+                        <PageNavButton page="explore">Explore</PageNavButton>
+                        <PageNavButton page="settings">Settings</PageNavButton>
+                    </div>
+                 </nav>
+                 <div className="flex-grow min-h-0 p-4">
+                    {activePage === 'create' ? (
+                        <CreatePage 
+                            history={history}
+                            setHistory={setHistory}
+                            aiCommunication={aiCommunication}
+                            setAiCommunication={setAiCommunication}
+                            attachedImages={attachedImages}
+                            setAttachedImages={setAttachedImages}
+                            handleFileChange={handleFileChange}
+                            handleAiSubmit={handleAiSubmit}
+                            handleCreateVariations={handleCreateVariations}
+                            aspectRatio={aspectRatio}
+                            setAspectRatio={setAspectRatio}
+                            isAspectRatioMenuOpen={isAspectRatioMenuOpen}
+                            setAspectRatioMenuOpen={setAspectRatioMenuOpen}
+                            isDragging={isDragging}
+                            handlePaste={handlePaste}
+                            dragHandlers={{ 
+                                onDragEnter: handleDragEnter, 
+                                onDragLeave: handleDragLeave, 
+                                onDragOver: handleDragOver, 
+                                onDrop: handleDrop 
+                            }}
+                        />
+                    ) : activePage === 'explore' ? (
+                        <ExplorePage />
+                    ) : (
+                       <AccountSettingsPage user={user} onUpdateUser={handleUpdateUser} onAvatarChange={handleAvatarChange} />
+                    )}
+                 </div>
+              </main>
+          </div>
+        </>
+      )}
     </div>
   );
 };

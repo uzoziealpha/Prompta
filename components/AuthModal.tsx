@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Icon } from './Icon';
-import { ICONS } from '../constants';
-import { User } from '../types';
+// FIX: Corrected import path to point to constants/index.ts to avoid conflict with empty constants.ts at root
+import { ICONS } from '../constants/index';
+// FIX: Corrected import path to point to types/index.ts to avoid conflict with empty types.ts at root
+import { User } from '../types/index';
 
 type AuthTab = 'signin' | 'signup' | 'magiclink';
 
@@ -27,9 +29,10 @@ const AuthModalTab: React.FC<{
 );
 
 export const AuthModal: React.FC<{
-    onClose: () => void;
+    onClose?: () => void;
     onLoginSuccess: (user: User) => void;
-}> = ({ onClose, onLoginSuccess }) => {
+    isGated?: boolean;
+}> = ({ onClose, onLoginSuccess, isGated = false }) => {
     const [activeTab, setActiveTab] = useState<AuthTab>('signin');
     const modalRef = useRef<HTMLDivElement>(null);
 
@@ -41,13 +44,13 @@ export const AuthModal: React.FC<{
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
-                onClose();
+            if (!isGated && modalRef.current && !modalRef.current.contains(event.target as Node)) {
+                onClose?.();
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [onClose]);
+    }, [onClose, isGated]);
 
     const handleFormSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -139,9 +142,11 @@ export const AuthModal: React.FC<{
     return (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-md">
             <div ref={modalRef} className="bg-[var(--color-surface-2)] w-full max-w-sm rounded-2xl p-8 border border-[var(--color-border)] relative">
-                <button onClick={onClose} className="absolute top-4 right-4 text-[var(--color-text-secondary)] hover:text-white">
-                    <Icon path={ICONS.close} className="w-6 h-6" />
-                </button>
+                {!isGated && onClose && (
+                    <button onClick={onClose} className="absolute top-4 right-4 text-[var(--color-text-secondary)] hover:text-white">
+                        <Icon path={ICONS.close} className="w-6 h-6" />
+                    </button>
+                )}
                 <h2 className="text-2xl font-bold text-center mb-1">Welcome to Prompta</h2>
                 <p className="text-center text-[var(--color-text-secondary)] mb-6 text-sm">Sign in or create an account to begin.</p>
                 
@@ -166,7 +171,7 @@ export const AuthModal: React.FC<{
                         <Icon path={ICONS.google} className="w-5 h-5" />
                         <span className="text-sm font-medium">Continue with Google</span>
                     </button>
-                     <button onClick={onClose} className="w-full flex items-center justify-center space-x-3 py-3 rounded-lg bg-white hover:bg-gray-200 border border-gray-700 transition-colors text-black">
+                     <button className="w-full flex items-center justify-center space-x-3 py-3 rounded-lg bg-white hover:bg-gray-200 border border-gray-700 transition-colors text-black">
                         <Icon path={ICONS.apple} className="w-5 h-5" />
                         <span className="text-sm font-medium">Continue with Apple</span>
                     </button>

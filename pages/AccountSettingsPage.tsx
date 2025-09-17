@@ -1,6 +1,8 @@
-import React, { useRef, useState } from 'react';
-import { User, SessionDevice } from '../types';
-import { ICONS } from '../constants';
+import React, { useRef, useState, useEffect } from 'react';
+// FIX: Corrected import path to point to types/index.ts to avoid conflict with empty types.ts at root
+import { User, SessionDevice } from '../types/index';
+// FIX: Corrected import path to point to constants/index.ts to avoid conflict with empty constants.ts at root
+import { ICONS } from '../constants/index';
 import { Icon } from '../components/Icon';
 
 const mockSessions: SessionDevice[] = [
@@ -46,7 +48,29 @@ export const AccountSettingsPage: React.FC<{
     onAvatarChange: (file: File) => void;
 }> = ({ user, onUpdateUser, onAvatarChange }) => {
     const [currentUser, setCurrentUser] = useState(user);
+    const [isDirty, setIsDirty] = useState(false);
     const avatarInputRef = useRef<HTMLInputElement>(null);
+
+    // Effect to detect any changes between the original user prop and the local state
+    useEffect(() => {
+        // Simple string comparison to check for changes
+        const hasChanges = JSON.stringify(user) !== JSON.stringify(currentUser);
+        setIsDirty(hasChanges);
+    }, [user, currentUser]);
+
+    // This effect correctly merges external avatar changes from the parent (user prop)
+    // without discarding local form edits to name fields.
+    useEffect(() => {
+        if (user.avatar !== currentUser.avatar) {
+            setCurrentUser(prev => ({...prev, avatar: user.avatar}));
+        }
+    }, [user.avatar]);
+    
+    // This resets the entire form state if the user context changes (e.g., re-login)
+    useEffect(() => {
+        setCurrentUser(user);
+    }, [user.email]);
+
 
     const handleFieldChange = (e: React.ChangeEvent<HTMLInputElement>, field: keyof User) => {
         setCurrentUser({ ...currentUser, [field]: e.target.value });
@@ -57,16 +81,27 @@ export const AccountSettingsPage: React.FC<{
             onAvatarChange(e.target.files[0]);
         }
     };
+    
+    const handleSaveChanges = () => {
+        const changes: Partial<User> = {};
+        if (currentUser.firstName !== user.firstName) changes.firstName = currentUser.firstName;
+        if (currentUser.lastName !== user.lastName) changes.lastName = currentUser.lastName;
+        // Avatar is saved immediately via onAvatarChange, but we only update text fields here.
+        if (Object.keys(changes).length > 0) {
+            onUpdateUser(changes);
+        }
+        setIsDirty(false); // Manually reset dirty state after save
+    };
 
     return (
         <div className="h-full overflow-y-auto pr-2">
             <div className="max-w-4xl mx-auto space-y-8">
                 <SettingsCard title="Profile" description="Manage your personal information." icon={ICONS.userCircle}>
-                    <div className="flex items-center space-x-6">
+                    <div className="flex flex-col lg:flex-row items-center space-y-4 lg:space-y-0 lg:space-x-6">
                         <input type="file" ref={avatarInputRef} onChange={handleAvatarFileChange} accept="image/*" className="hidden" />
-                        <button onClick={() => avatarInputRef.current?.click()} className="group relative">
+                        <button onClick={() => avatarInputRef.current?.click()} className="group relative flex-shrink-0">
                             <img
-                                src={user.avatar || `https://ui-avatars.com/api/?name=${user.firstName}+${user.lastName}&background=8B5CF6&color=fff&rounded=true&size=96`}
+                                src={currentUser.avatar || `https://ui-avatars.com/api/?name=${currentUser.firstName}+${currentUser.lastName}&background=8B5CF6&color=fff&rounded=true&size=96`}
                                 alt="User avatar"
                                 className="w-24 h-24 rounded-full object-cover transition-opacity group-hover:opacity-80"
                             />
@@ -74,7 +109,7 @@ export const AccountSettingsPage: React.FC<{
                                 <Icon path={ICONS.edit} className="w-8 h-8 text-white" />
                             </div>
                         </button>
-                        <div className="flex-grow grid grid-cols-2 gap-4">
+                        <div className="w-full flex-grow grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <InputField label="First Name" value={currentUser.firstName} onChange={(e) => handleFieldChange(e, 'firstName')} />
                             <InputField label="Last Name" value={currentUser.lastName} onChange={(e) => handleFieldChange(e, 'lastName')} />
                         </div>
@@ -87,7 +122,13 @@ export const AccountSettingsPage: React.FC<{
                          </div>
                     </div>
                     <div className="mt-6 flex justify-end">
-                       <button onClick={() => onUpdateUser(currentUser)} className="px-5 py-2.5 rounded-lg bg-[var(--color-primary)] text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save Changes</button>
+                       <button 
+                            onClick={handleSaveChanges} 
+                            disabled={!isDirty}
+                            className="px-5 py-2.5 rounded-lg bg-[var(--color-primary)] text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Save Changes
+                        </button>
                     </div>
                 </SettingsCard>
 

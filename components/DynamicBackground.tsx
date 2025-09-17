@@ -1,5 +1,6 @@
 import React from 'react';
-import { Theme } from '../types';
+// FIX: Corrected import path to point to types/index.ts to avoid conflict with empty types.ts at root
+import { Theme } from '../types/index';
 
 export const DynamicBackground: React.FC<{ theme: Theme }> = ({ theme }) => {
     if (theme.id === 'nebula') {

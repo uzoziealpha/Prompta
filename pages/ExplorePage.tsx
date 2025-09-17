@@ -1,5 +1,6 @@
 import React from 'react';
-import { ICONS, EXPLORE_DATA } from '../constants';
+// FIX: Corrected import path to point to constants/index.ts to avoid conflict with empty constants.ts at root
+import { ICONS, EXPLORE_DATA } from '../constants/index';
 import { Icon } from '../components/Icon';
 
 const ExploreImageCard: React.FC<{ imageUrl: string; prompt: string }> = ({ imageUrl, prompt }) => (

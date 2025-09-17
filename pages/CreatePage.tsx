@@ -1,6 +1,8 @@
 import React, { useRef, useEffect } from 'react';
-import { HistoryItem, UserImage, AspectRatio, UserHistoryItem, BotHistoryItem } from '../types';
-import { ICONS, ASPECT_RATIO_OPTIONS } from '../constants';
+// FIX: Corrected import path to point to types/index.ts to avoid conflict with empty types.ts at root
+import { HistoryItem, UserImage, AspectRatio, UserHistoryItem, BotHistoryItem } from '../types/index';
+// FIX: Corrected import path to point to constants/index.ts to avoid conflict with empty constants.ts at root
+import { ICONS, ASPECT_RATIO_OPTIONS } from '../constants/index';
 import { Icon } from '../components/Icon';
 import { UserMessageCard, BotMessageCard } from '../components/MessageCards';
 
