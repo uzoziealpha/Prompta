@@ -66,3 +66,9 @@ export interface Theme {
     className: string;
     styles: React.CSSProperties;
 }
+
+export interface User {
+    isLoggedIn: boolean;
+    name: string;
+    avatar: string | null; // base64 string
+}

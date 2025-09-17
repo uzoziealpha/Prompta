@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { CameraPreset, GenerationSettings, HistoryItem, UserImage, Page, AspectRatio, BotHistoryItem, UserHistoryItem, Session, Theme } from './types';
+import { CameraPreset, GenerationSettings, HistoryItem, UserImage, Page, AspectRatio, BotHistoryItem, UserHistoryItem, Session, Theme, User } from './types';
 import { fileToBase64, createChatSession } from './services/geminiService';
 import type { Chat } from '@google/genai';
 
@@ -78,6 +78,7 @@ const Icon: React.FC<{ path: string; className?: string }> = ({ path, className 
 );
 
 const ICONS = {
+  promptaLogo: 'M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8.009 8.009 0 0 1-8 8zm1-12H9v8h4a4 4 0 0 0 0-8zm-2 6v-4h2a2 2 0 0 1 0 4z',
   addCircle: 'M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z',
   close: 'M6 18L18 6M6 6l12 12',
   send: 'M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z',
@@ -90,6 +91,9 @@ const ICONS = {
   edit: 'M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10',
   palette: 'M12 3.75a.75.75 0 01.75.75v.008l.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.007.008h-.007v-.008l-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008A.75.75 0 0112 3.75zM12 5.25a.75.75 0 01.75.75v.008l.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.007.008h-.007v-.008l-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008A.75.75 0 0112 5.25zm0 1.5a.75.75 0 01.75.75v.008l.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.007.008h-.007v-.008l-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008A.75.75 0 0112 6.75zM12 15a.75.75 0 01.75.75v.008l.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.007.008h-.007v-.008l-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008A.75.75 0 0112 15z M3.055 11.23a.75.75 0 010-1.06l4.242-4.243a.75.75 0 011.061 0l4.243 4.243a.75.75 0 010 1.06l-4.243 4.243a.75.75 0 01-1.06 0L3.055 11.23z',
   code: 'M6.75 7.5 3 12l3.75 4.5M17.25 7.5 21 12l-3.75 4.5',
+  google: 'M11.99 13.12l-1.42 1.42a6.5 6.5 0 0 1-4.32-8.3l1.42-1.42a4.5 4.5 0 0 0 4.32 8.3z M12.01 10.88l1.42-1.42a4.5 4.5 0 0 0-4.32-8.3L7.69 2.58a6.5 6.5 0 0 1 4.32 8.3z M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z',
+  apple: 'M12.042 17.51c-.817.005-1.632-.204-2.387-.611-.74-.396-1.42-1.025-2.028-1.875-.583-.815-1.03-1.823-1.33-3.004-.306-1.18-.458-2.508-.458-3.982 0-1.474.152-2.802.458-3.982.3-1.181.747-2.19 1.33-3.005.608-.85 1.287-1.479 2.028-1.875.755-.407 1.57-.616 2.387-.621.822-.005 1.637.204 2.387.611.735.396 1.41.996 2.027 1.846.18.25.326.48.438.692.112-.212.258-.442.438-.692.617-.85 1.292-1.45 2.027-1.846.75-.407 1.565-.616 2.387-.611.817.005 1.632.204 2.387.611.74.396 1.42.996 2.028 1.846.18.25.326.48.438.692.112-.212.258-.442.438-.692.608-.85 1.287-1.479 2.028-1.875.755-.407 1.57-.616 2.387-.621.822-.005 1.637.204 2.387.611.735.396 1.41.996 2.027 1.846.592.825 1.04 1.833 1.345 3.014.305 1.18.457 2.508.457 3.982s-.152 2.802-.457 3.982c-.305 1.181-.753 2.19-1.345 3.015-.617.85-1.292 1.479-2.027 1.875-.75.407-1.565.616-2.387.611-.817-.005-1.632-.204-2.387-.611-.74-.396-1.42-1.025-2.028-1.875-.18-.25-.326-.48-.438-.692-.112.212-.258-.442-.438-.692-.608.85-1.287 1.479-2.028 1.875-.755.407-1.57.616-2.387.621zM15.5 5.5c.345-.715.518-1.52.518-2.415 0-.616-.1-1.18-.3-1.695-.2-.515-.508-.95-1.023-1.305-.516-.355-1.13-.53-1.846-.53-.716 0-1.427.24-2.133.72-.706.48-1.305.995-1.797 1.545-.492.55-.89 1.13-1.192 1.74-.301.61-.452 1.29-.452 2.04 0 .615.105 1.18.314 1.695.21.515.523.95 1.04 1.305.516.355 1.13.53 1.846.53.716 0 1.427-.24 2.133-.72.706.48 1.305-.995 1.797-1.545.492-.55.89-1.13 1.192-1.74.301-.61.452-1.29.452-2.04z',
+  logout: 'M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6A2.25 2.25 0 005.25 5.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75',
 };
 
 // -- DYNAMIC BACKGROUND COMPONENT --
@@ -206,6 +210,91 @@ const BotMessageCard: React.FC<{ item: BotHistoryItem; onDelete: () => void; }> 
     return null;
 };
 
+const LoginModal: React.FC<{
+    onClose: () => void;
+    onEmailLogin: (email: string) => void;
+    onGoogleLogin: () => void;
+}> = ({ onClose, onEmailLogin, onGoogleLogin }) => {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const modalRef = useRef<HTMLDivElement>(null);
+
+    // Close modal on outside click
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+                onClose();
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [onClose]);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (email) { // Simple validation
+            onEmailLogin(email);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-md">
+            <div ref={modalRef} className="bg-[var(--color-surface-2)] w-full max-w-sm rounded-2xl p-8 border border-[var(--color-border)] relative">
+                <button onClick={onClose} className="absolute top-4 right-4 text-[var(--color-text-secondary)] hover:text-white">
+                    <Icon path={ICONS.close} className="w-6 h-6" />
+                </button>
+                <h2 className="text-2xl font-bold text-center mb-1">Welcome Back</h2>
+                <p className="text-center text-[var(--color-text-secondary)] mb-6">Sign in to continue your vision.</p>
+                
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="text-sm font-medium text-[var(--color-text-secondary)]">Email</label>
+                        <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="you@example.com"
+                            className="mt-1 w-full bg-[var(--color-surface-3)] border border-[var(--color-border)] rounded-lg p-3 text-sm focus:ring-2 focus:ring-[var(--color-primary)]"
+                            required
+                        />
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium text-[var(--color-text-secondary)]">Password</label>
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="••••••••"
+                            className="mt-1 w-full bg-[var(--color-surface-3)] border border-[var(--color-border)] rounded-lg p-3 text-sm focus:ring-2 focus:ring-[var(--color-primary)]"
+                            required
+                        />
+                    </div>
+                    <button type="submit" className="w-full bg-[var(--color-primary)] text-white font-semibold rounded-lg py-3 hover:bg-[var(--color-primary-hover)] transition-colors">
+                        Sign In
+                    </button>
+                </form>
+                
+                <div className="my-6 flex items-center">
+                    <div className="flex-grow border-t border-[var(--color-border)]"></div>
+                    <span className="mx-4 text-xs text-[var(--color-text-secondary)]">OR</span>
+                    <div className="flex-grow border-t border-[var(--color-border)]"></div>
+                </div>
+
+                <div className="space-y-3">
+                     <button onClick={onGoogleLogin} className="w-full flex items-center justify-center space-x-2 py-3 rounded-lg bg-[var(--color-surface-3)] hover:bg-[var(--color-surface-1)] border border-[var(--color-border)] transition-colors">
+                        <Icon path={ICONS.google} className="w-5 h-5" />
+                        <span className="text-sm font-medium">Sign in with Google</span>
+                    </button>
+                     <button onClick={onGoogleLogin} className="w-full flex items-center justify-center space-x-3 py-3 rounded-lg bg-white hover:bg-gray-200 border border-gray-700 transition-colors text-black">
+                        <Icon path={ICONS.apple} className="w-5 h-5" />
+                        <span className="text-sm font-medium">Sign in with Apple</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const CreatePage: React.FC<{
     history: HistoryItem[];
     setHistory: (updater: React.SetStateAction<HistoryItem[]>) => void;
@@ -227,6 +316,10 @@ const CreatePage: React.FC<{
         handleDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
         handleDrop: (e: React.DragEvent<HTMLDivElement>) => void;
     };
+    user: User | null;
+    onOpenLoginModal: () => void;
+    onLogout: () => void;
+    onAvatarChange: (file: File) => void;
 }> = ({
     history,
     setHistory,
@@ -243,9 +336,14 @@ const CreatePage: React.FC<{
     isDragging,
     handlePaste,
     dragHandlers,
+    user,
+    onOpenLoginModal,
+    onLogout,
+    onAvatarChange
 }) => {
     const historyContainerRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const avatarInputRef = useRef<HTMLInputElement>(null);
     const menuContainerRef = useRef<HTMLDivElement>(null);
     const selectedAspectRatio = ASPECT_RATIO_OPTIONS.find(opt => opt.name === aspectRatio);
 
@@ -255,6 +353,12 @@ const CreatePage: React.FC<{
 
     const handleDeleteHistoryItem = (idToDelete: number) => {
         setHistory(prev => prev.filter(item => item.id !== idToDelete));
+    };
+    
+    const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            onAvatarChange(e.target.files[0]);
+        }
     };
 
     useEffect(() => {
@@ -398,6 +502,41 @@ const CreatePage: React.FC<{
                         </div>
                     </div>
                 </form>
+                <div className="mt-2 flex items-center justify-center">
+                    {user && user.isLoggedIn ? (
+                        <div className="flex items-center space-x-3 text-sm">
+                            <input
+                                type="file"
+                                ref={avatarInputRef}
+                                onChange={handleAvatarFileChange}
+                                accept="image/*"
+                                className="hidden"
+                            />
+                            <button onClick={() => avatarInputRef.current?.click()} className="group relative">
+                                <img
+                                    src={user.avatar || `https://ui-avatars.com/api/?name=${user.name.replace(' ', '+')}&background=8B5CF6&color=fff&rounded=true`}
+                                    alt="User avatar"
+                                    className="w-8 h-8 rounded-full object-cover transition-opacity group-hover:opacity-80"
+                                />
+                                <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Icon path={ICONS.edit} className="w-4 h-4 text-white" />
+                                </div>
+                            </button>
+                            <span className="font-medium text-[var(--color-text-primary)]">{user.name}</span>
+                            <button onClick={onLogout} className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] transition-colors text-[var(--color-text-secondary)] hover:text-white">
+                                <Icon path={ICONS.logout} className="w-4 h-4" />
+                                <span>Logout</span>
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={onOpenLoginModal}
+                            className="flex items-center space-x-2 px-4 py-2 rounded-full bg-white text-gray-800 font-medium hover:bg-gray-200 transition-colors"
+                        >
+                            <span>Sign In</span>
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -411,31 +550,34 @@ const ExploreImageCard: React.FC<{ imageUrl: string; prompt: string }> = ({ imag
     </div>
 );
 
-const ExplorePage: React.FC = () => (
-    <main className="flex-grow overflow-y-auto p-4 md:p-6 space-y-8 bg-[var(--color-surface-1)]/80 backdrop-blur-sm">
-        <div className="relative">
-            <input
-                type="text"
-                placeholder="Explore new ideas, styles, and themes..."
-                className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-full py-3 pl-12 pr-4 text-[var(--color-text-primary)] placeholder-[var(--color-text-secondary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)]"
-            />
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)]">
-                <Icon path={ICONS.search} className="w-5 h-5" />
-            </div>
-        </div>
-
-        {Object.entries(EXPLORE_DATA).map(([title, images]) => (
-            <section key={title}>
-                <h2 className="text-xl font-bold tracking-tight mb-4">{title}</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {images.map(image => (
-                        <ExploreImageCard key={image.id} imageUrl={image.imageUrl} prompt={image.prompt} />
-                    ))}
+// Fix: Changed component to use explicit return to avoid type inference issues with React.FC.
+const ExplorePage: React.FC = () => {
+    return (
+        <main className="flex-grow overflow-y-auto p-4 md:p-6 space-y-8 bg-[var(--color-surface-1)]/80 backdrop-blur-sm">
+            <div className="relative">
+                <input
+                    type="text"
+                    placeholder="Explore new ideas, styles, and themes..."
+                    className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-full py-3 pl-12 pr-4 text-[var(--color-text-primary)] placeholder-[var(--color-text-secondary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)]"
+                />
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)]">
+                    <Icon path={ICONS.search} className="w-5 h-5" />
                 </div>
-            </section>
-        ))}
-    </main>
-);
+            </div>
+
+            {Object.entries(EXPLORE_DATA).map(([title, images]) => (
+                <section key={title}>
+                    <h2 className="text-xl font-bold tracking-tight mb-4">{title}</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {images.map(image => (
+                            <ExploreImageCard key={image.id} imageUrl={image.imageUrl} prompt={image.prompt} />
+                        ))}
+                    </div>
+                </section>
+            ))}
+        </main>
+    );
+};
 
 const Sidebar: React.FC<{
     isOpen: boolean;
@@ -534,6 +676,68 @@ const App: React.FC = () => {
   });
   const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
   const themeMenuRef = useRef<HTMLDivElement>(null);
+  
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+        const savedUserJSON = localStorage.getItem('prompta-user');
+        if (savedUserJSON) {
+            const loadedUser: User = JSON.parse(savedUserJSON);
+            setUser(loadedUser);
+        }
+    } catch (e) {
+        console.error("Failed to load user:", e);
+        setUser(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+        localStorage.setItem('prompta-user', JSON.stringify(user));
+    } else {
+        localStorage.removeItem('prompta-user');
+    }
+  }, [user]);
+
+  const handleGoogleLogin = () => {
+    setUser({
+        isLoggedIn: true,
+        name: 'Demo User',
+        avatar: null,
+    });
+    setIsLoginModalOpen(false);
+  };
+  
+  const handleEmailLogin = (email: string) => {
+    const name = email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    setUser({
+        isLoggedIn: true,
+        name: name || "User",
+        avatar: null,
+    });
+    setIsLoginModalOpen(false);
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+  };
+
+  const handleAvatarChange = async (file: File) => {
+    if (!user) return;
+    try {
+        const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = error => reject(error);
+        });
+        setUser({ ...user, avatar: base64 });
+    } catch (error) {
+        console.error("Error updating avatar:", error);
+    }
+  };
 
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
@@ -750,6 +954,7 @@ const App: React.FC = () => {
         if (attachedImages.length > 0) parts.push(...attachedImages.map(img => ({ inlineData: { data: img.data, mimeType: img.file.type } })));
         if (finalMessage) parts.push({ text: finalMessage });
         
+        // Fix: Pass parts array as 'message' property of an object to sendMessage.
         const response = await currentChat.sendMessage({ message: parts });
 
         let resultImage: string | undefined;
@@ -915,6 +1120,12 @@ export interface Theme {
     name: string;
     className: string;
     styles: React.CSSProperties;
+}
+
+export interface User {
+    isLoggedIn: boolean;
+    name: string;
+    avatar: string | null; // base64 string
 }`;
 
         const geminiServiceTsContent = `import { GoogleGenAI, Modality, Chat } from "@google/genai";
@@ -944,7 +1155,7 @@ export const createChatSession = (): Chat => {
     });
 };`;
         
-        // FIX: Removed escaping backslashes from the template literal definition.
+        // FIX: Removed an erroneous backslash from the start of the template literal which was causing a syntax error.
         const readmeMdContent = `# Prompta AI Vision Studio
 
 This is the code for the Prompta AI Vision Studio application, generated for you to push to your own Git repository.
@@ -1015,6 +1226,7 @@ That's it! Your code is now on GitHub.
   return (
     <div className="h-screen w-screen bg-[var(--color-bg)] text-[var(--color-text-primary)] flex flex-col font-sans relative">
       <DynamicBackground theme={activeTheme} />
+      {isLoginModalOpen && <LoginModal onClose={() => setIsLoginModalOpen(false)} onEmailLogin={handleEmailLogin} onGoogleLogin={handleGoogleLogin} />}
       <header className="p-4 flex-shrink-0 flex items-center justify-between border-b border-[var(--color-border)] z-10 bg-[var(--color-surface-1)]/50 backdrop-blur-lg">
         <div className="flex items-center">
             <button
@@ -1023,7 +1235,7 @@ That's it! Your code is now on GitHub.
                 aria-label="Toggle session history"
             >
                 <div className="absolute -inset-0.5 bg-[var(--color-primary)] rounded-full opacity-0 group-hover:opacity-30 blur-md transition-opacity"></div>
-                <Icon path={isSidebarOpen ? ICONS.close : ICONS.menu} className="w-6 h-6 transition-transform duration-300 group-hover:scale-110" />
+                <Icon path={isSidebarOpen ? ICONS.close : ICONS.promptaLogo} className="w-6 h-6 transition-transform duration-300 group-hover:scale-110" />
             </button>
             <h1 className="text-xl font-bold tracking-tighter">Prompta</h1>
             <span className="ml-2 text-xs bg-[var(--color-primary)]/20 text-[var(--color-primary)] font-mono px-2 py-0.5 rounded-full">AI</span>
@@ -1100,6 +1312,10 @@ That's it! Your code is now on GitHub.
                     isDragging={isDragging}
                     handlePaste={handlePaste}
                     dragHandlers={{ handleDragEnter, handleDragLeave, handleDragOver, handleDrop }}
+                    user={user}
+                    onOpenLoginModal={() => setIsLoginModalOpen(true)}
+                    onLogout={handleLogout}
+                    onAvatarChange={handleAvatarChange}
                 />
             ) : (
                 <ExplorePage />
