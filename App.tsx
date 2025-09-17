@@ -1,14 +1,15 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import type { Chat } from '@google/genai';
+import type { Chat } from '@google/ai/generativelanguage';
 import { HistoryItem, UserImage, Page, AspectRatio, BotHistoryItem, UserHistoryItem, Session, Theme, User } from './types';
 import { fileToBase64, createChatSession } from './services/geminiService';
 
 import { ICONS, THEMES } from './constants';
 import { Icon } from './components/Icon';
 import { DynamicBackground } from './components/DynamicBackground';
-import { LoginModal } from './components/LoginModal';
+import { AuthModal } from './components/AuthModal';
 import { CreatePage } from './pages/CreatePage';
 import { ExplorePage } from './pages/ExplorePage';
+import { AccountSettingsPage } from './pages/AccountSettingsPage';
 import { Sidebar } from './components/Sidebar';
 
 // Extend the Window interface to include JSZip
@@ -41,7 +42,9 @@ const App: React.FC = () => {
   const themeMenuRef = useRef<HTMLDivElement>(null);
   
   const [user, setUser] = useState<User | null>(null);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
@@ -64,29 +67,21 @@ const App: React.FC = () => {
     }
   }, [user]);
 
-  const handleGoogleLogin = () => {
-    setUser({
-        isLoggedIn: true,
-        name: 'Demo User',
-        avatar: null,
-    });
-    setIsLoginModalOpen(false);
-  };
-  
-  const handleEmailLogin = (email: string) => {
-    const name = email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    setUser({
-        isLoggedIn: true,
-        name: name || "User",
-        avatar: null,
-    });
-    setIsLoginModalOpen(false);
+  const handleLoginSuccess = (loggedInUser: User) => {
+    setUser(loggedInUser);
+    setIsAuthModalOpen(false);
   };
 
   const handleLogout = () => {
     setUser(null);
+    setIsUserMenuOpen(false);
+    setActivePage('create');
   };
 
+  const handleUpdateUser = (updatedFields: Partial<User>) => {
+    setUser(prev => (prev ? { ...prev, ...updatedFields } : null));
+  };
+  
   const handleAvatarChange = async (file: File) => {
     if (!user) return;
     try {
@@ -96,7 +91,7 @@ const App: React.FC = () => {
             reader.onload = () => resolve(reader.result as string);
             reader.onerror = error => reject(error);
         });
-        setUser({ ...user, avatar: base64 });
+        handleUpdateUser({ avatar: base64 });
     } catch (error) {
         console.error("Error updating avatar:", error);
     }
@@ -169,6 +164,9 @@ const App: React.FC = () => {
     const handleClickOutside = (event: MouseEvent) => {
         if (themeMenuRef.current && !themeMenuRef.current.contains(event.target as Node)) {
             setIsThemeMenuOpen(false);
+        }
+        if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+            setIsUserMenuOpen(false);
         }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -287,6 +285,11 @@ const App: React.FC = () => {
   };
 
   const handleAiSubmit = async () => {
+    if (!user) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+
     const message = aiCommunication.trim();
     if ((!message && attachedImages.length === 0) || !activeSessionId) return;
 
@@ -326,7 +329,7 @@ const App: React.FC = () => {
         if (attachedImages.length > 0) parts.push(...attachedImages.map(img => ({ inlineData: { data: img.data, mimeType: img.file.type } })));
         if (finalMessage) parts.push({ text: finalMessage });
         
-        const response = await currentChat.sendMessage({ message: parts });
+        const response = await currentChat.sendMessage({ message: { parts } });
 
         let resultImage: string | undefined;
         const resultText = response.text ? response.text : undefined;
@@ -348,6 +351,10 @@ const App: React.FC = () => {
   };
   
   const handleCreateVariations = async (originalPrompt: string, imageUrl: string) => {
+    if (!user) {
+      setIsAuthModalOpen(true);
+      return;
+    }
     if (!activeSessionId) return;
 
     // 1. Convert data URL back into a UserImage object
@@ -381,7 +388,7 @@ const App: React.FC = () => {
             { text: finalMessage }
         ];
         
-        const response = await currentChat.sendMessage({ message: parts });
+        const response = await currentChat.sendMessage({ message: { parts } });
 
         let resultImage: string | undefined;
         const resultText = response.text ? response.text : undefined;
@@ -409,237 +416,30 @@ const App: React.FC = () => {
         }
         const zip = new window.JSZip();
         
-        // Define file contents
-        const indexHtmlContent = `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Prompta: The Ultimate Vision Studio</title>
-    <link rel="icon" href="data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238B5CF6'%3e%3cpath d='M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8.009 8.009 0 0 1-8 8zm1-12H9v8h4a4 4 0 0 0 0-8zm-2 6v-4h2a2 2 0 0 1 0 4z'/%3e%3c/svg%3e" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <style>
-      body {
-          -webkit-font-smoothing: antialiased;
-          -moz-osx-font-smoothing: grayscale;
-          background-color: var(--color-bg);
-          color: var(--color-text-primary);
-      }
-      
-      /* --- Dynamic Background Keyframes --- */
-      @keyframes nebula-scroll {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-      }
+        // This function would ideally fetch all current files to create an accurate zip.
+        // For simplicity in this environment, it will use static content matching the current app state.
+        const fileContents: { [key: string]: string | Promise<string> } = {
+          "index.html": (await (await fetch(window.location.origin + '/index.html')).text()),
+          "index.tsx": (await (await fetch(window.location.origin + '/index.tsx')).text()),
+          "App.tsx": (await (await fetch(window.location.origin + '/App.tsx')).text()),
+          "types.ts": (await (await fetch(window.location.origin + '/types.ts')).text()),
+          "constants.ts": (await (await fetch(window.location.origin + '/constants.ts')).text()),
+          "services/geminiService.ts": (await (await fetch(window.location.origin + '/services/geminiService.ts')).text()),
+          "metadata.json": (await (await fetch(window.location.origin + '/metadata.json')).text()),
+          "components/Icon.tsx": (await (await fetch(window.location.origin + '/components/Icon.tsx')).text()),
+          "components/DynamicBackground.tsx": (await (await fetch(window.location.origin + '/components/DynamicBackground.tsx')).text()),
+          "components/MessageCards.tsx": (await (await fetch(window.location.origin + '/components/MessageCards.tsx')).text()),
+          "components/AuthModal.tsx": (await (await fetch(window.location.origin + '/components/AuthModal.tsx')).text()),
+          "components/Sidebar.tsx": (await (await fetch(window.location.origin + '/components/Sidebar.tsx')).text()),
+          "pages/CreatePage.tsx": (await (await fetch(window.location.origin + '/pages/CreatePage.tsx')).text()),
+          "pages/ExplorePage.tsx": (await (await fetch(window.location.origin + '/pages/ExplorePage.tsx')).text()),
+          "pages/AccountSettingsPage.tsx": (await (await fetch(window.location.origin + '/pages/AccountSettingsPage.tsx')).text()),
+          "README.md": `# Prompta AI Vision Studio\n\nThis zip contains the source code for your Prompta application. You can use these files to set up a local development environment or deploy to a hosting provider.`
+        };
 
-      @keyframes float {
-        0% { transform: translateY(0px); opacity: 0; }
-        25% { opacity: 0.7; }
-        50% { transform: translateY(-500px); opacity: 1; }
-        75% { opacity: 0.7; }
-        100% { transform: translateY(-1000px); opacity: 0; }
-      }
-    </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.1.1/",
-    "react": "https://aistudiocdn.com/react@^19.1.1",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.19.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/"
-  }
-}
-</script>
-</head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
-  </body>
-</html>`;
-        
-        const indexTsxContent = `import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
-
-const rootElement = document.getElementById('root');
-if (!rootElement) {
-  throw new Error("Could not find root element to mount to");
-}
-
-const root = ReactDOM.createRoot(rootElement);
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);`;
-
-        const metadataJsonContent = `{
-  "name": "Prompta: The Ultimate Vision Studio",
-  "description": "An AI-powered vision studio that brings your creative prompts to life with unparalleled speed, control, and photorealism. Generate and edit flawless, high-resolution visuals using cutting-edge Google AI.",
-  "requestFramePermissions": []
-}`;
-        const typesTsContent = `export interface CameraPreset {
-  name: string;
-  prompt: string;
-}
-
-export interface IdeaHook {
-  id: number;
-  prompt: string;
-  imageUrl: string;
-}
-
-export interface GenerationSettings {
-    aspectRatio: '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
-    camera: CameraPreset | null;
-    seed: string;
-}
-
-export type FileType = 'jpeg' | 'png' | 'webp' | 'tiff';
-export type ColorProfile = 'sRGB' | 'Adobe RGB' | 'ProPhoto RGB';
-export type AspectRatio = 'Square' | 'Portrait' | 'Landscape';
-
-export interface ExportSettings {
-    fileType: FileType;
-    quality: number; // 0-1 for jpeg/webp
-    colorProfile: ColorProfile;
-}
-
-// Represents an image file attached by the user.
-export interface UserImage {
-    data: string; // base64 encoded
-    file: File;
-}
-
-// Represents a message sent by the user.
-export interface UserHistoryItem {
-    type: 'user';
-    id: number;
-    text: string;
-    images: UserImage[];
-}
-
-// Represents a response from the AI.
-export interface BotHistoryItem {
-    type: 'bot';
-    id: number;
-    prompt?: string;
-    imageUrl?: string;
-    text?: string; // For errors or text responses
-    isLoading?: boolean;
-}
-
-export type HistoryItem = UserHistoryItem | BotHistoryItem;
-
-export type Page = 'create' | 'explore';
-
-export interface Session {
-    id: number;
-    title: string;
-    date: string; // ISO String for consistent date handling
-    history: HistoryItem[];
-}
-
-export interface Theme {
-    id: string;
-    name: string;
-    className: string;
-    styles: React.CSSProperties;
-}
-
-export interface User {
-    isLoggedIn: boolean;
-    name: string;
-    avatar: string | null; // base64 string
-}`;
-
-        const geminiServiceTsContent = `import { GoogleGenAI, Modality, Chat } from "@google/genai";
-
-if (!process.env.API_KEY) {
-    throw new Error("API_KEY environment variable not set");
-}
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-export const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve((reader.result as string).split(',')[1]);
-        reader.onerror = error => reject(error);
-    });
-};
-
-export const createChatSession = (): Chat => {
-    return ai.chats.create({
-        model: 'gemini-2.5-flash-image-preview',
-        // The config is the same as the models.generateContent config.
-        config: {
-            responseModalities: [Modality.IMAGE, Modality.TEXT],
-        },
-    });
-};`;
-        
-        const readmeMdContent = `# Prompta AI Vision Studio
-
-This is the code for the Prompta AI Vision Studio application, generated for you to push to your own Git repository.
-
-## How to use this code
-
-This project consists of a single \`index.html\` file that loads a React application via ES modules. All the necessary dependencies are loaded from a CDN, and it's configured to use the \`process.env.API_KEY\` provided by its hosting environment.
-
-## Pushing to GitHub
-
-You can now use these files to create your own Git repository.
-
-1.  Create a new repository on [GitHub](https://github.com/new).
-2.  Unzip the downloaded folder.
-3.  Follow the instructions provided by GitHub to "push an existing repository from the command line":
-
-    \`\`\`bash
-    # Navigate to the unzipped folder in your terminal
-    cd path/to/your/project
-
-    # Initialize a new git repository
-    git init -b main
-    git add .
-    git commit -m "Initial commit of Prompta AI Studio"
-
-    # Add your GitHub repository as a remote and push
-    git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPOSITORY.git
-    git push -u origin main
-    \`\`\`
-
-That's it! Your code is now on GitHub.
-`;
-        
-        const constantsTsContent = (await (await fetch(window.location.origin + '/constants.ts')).text());
-        const appTsxContent = (await (await fetch(window.location.origin + '/App.tsx')).text());
-        const iconTsxContent = (await (await fetch(window.location.origin + '/components/Icon.tsx')).text());
-        const dynamicBackgroundTsxContent = (await (await fetch(window.location.origin + '/components/DynamicBackground.tsx')).text());
-        const messageCardsTsxContent = (await (await fetch(window.location.origin + '/components/MessageCards.tsx')).text());
-        const loginModalTsxContent = (await (await fetch(window.location.origin + '/components/LoginModal.tsx')).text());
-        const sidebarTsxContent = (await (await fetch(window.location.origin + '/components/Sidebar.tsx')).text());
-        const createPageTsxContent = (await (await fetch(window.location.origin + '/pages/CreatePage.tsx')).text());
-        const explorePageTsxContent = (await (await fetch(window.location.origin + '/pages/ExplorePage.tsx')).text());
-        
-        zip.file("index.html", indexHtmlContent);
-        zip.file("index.tsx", indexTsxContent);
-        zip.file("App.tsx", appTsxContent);
-        zip.file("types.ts", typesTsContent);
-        zip.file("constants.ts", constantsTsContent);
-        zip.file("services/geminiService.ts", geminiServiceTsContent);
-        zip.file("metadata.json", metadataJsonContent);
-        zip.file("README.md", readmeMdContent);
-        zip.file("components/Icon.tsx", iconTsxContent);
-        zip.file("components/DynamicBackground.tsx", dynamicBackgroundTsxContent);
-        zip.file("components/MessageCards.tsx", messageCardsTsxContent);
-        zip.file("components/LoginModal.tsx", loginModalTsxContent);
-        zip.file("components/Sidebar.tsx", sidebarTsxContent);
-        zip.file("pages/CreatePage.tsx", createPageTsxContent);
-        zip.file("pages/ExplorePage.tsx", explorePageTsxContent);
+        for (const [path, content] of Object.entries(fileContents)) {
+            zip.file(path, await content);
+        }
 
         zip.generateAsync({ type: "blob" }).then(function(content: Blob) {
             const link = document.createElement('a');
@@ -652,14 +452,15 @@ That's it! Your code is now on GitHub.
     };
 
 
-  const NavButton: React.FC<{ page: Page, children: React.ReactNode }> = ({ page, children }) => (
+  const PageNavButton: React.FC<{ page: Page, children: React.ReactNode }> = ({ page, children }) => (
       <button
           onClick={() => setActivePage(page)}
           className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
               activePage === page 
-              ? 'bg-[var(--color-primary)] text-white' 
-              : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)] hover:text-white'
+              ? 'bg-[var(--color-surface-3)] text-white' 
+              : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)] hover:text-white'
           }`}
+          aria-current={activePage === page}
       >
           {children}
       </button>
@@ -668,7 +469,7 @@ That's it! Your code is now on GitHub.
   return (
     <div className="h-screen w-screen bg-[var(--color-bg)] text-[var(--color-text-primary)] flex flex-col font-sans relative">
       <DynamicBackground theme={activeTheme} />
-      {isLoginModalOpen && <LoginModal onClose={() => setIsLoginModalOpen(false)} onEmailLogin={handleEmailLogin} onGoogleLogin={handleGoogleLogin} />}
+      {isAuthModalOpen && <AuthModal onClose={() => setIsAuthModalOpen(false)} onLoginSuccess={handleLoginSuccess} />}
       <header className="p-4 flex-shrink-0 flex items-center justify-between border-b border-[var(--color-border)] z-10 bg-[var(--color-surface-1)]/50 backdrop-blur-lg">
         <div className="flex items-center">
             <button
@@ -700,31 +501,64 @@ That's it! Your code is now on GitHub.
                 </button>
                 {isThemeMenuOpen && (
                     <div className="absolute top-full right-0 mt-2 w-48 bg-[var(--color-surface-3)] border border-[var(--color-border)] rounded-lg shadow-2xl z-20">
-                        <ul className="py-1">
-                            {THEMES.map(theme => (
-                                <li key={theme.id}>
-                                    <button
-                                        onClick={() => {
-                                            setActiveTheme(theme);
-                                            setIsThemeMenuOpen(false);
-                                        }}
-                                        className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between transition-colors ${
-                                            activeTheme.id === theme.id ? 'font-semibold text-white bg-[var(--color-primary)]' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)]'
-                                        }`}
-                                    >
-                                        <span>{theme.name}</span>
-                                        {activeTheme.id === theme.id && <Icon path={ICONS.check} className="w-4 h-4" />}
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
+                        {THEMES.map(theme => (
+                            <button
+                                key={theme.id}
+                                onClick={() => {
+                                    setActiveTheme(theme);
+                                    setIsThemeMenuOpen(false);
+                                }}
+                                className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between transition-colors ${
+                                    activeTheme.id === theme.id ? 'font-semibold text-white bg-[var(--color-primary)]' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)]'
+                                }`}
+                            >
+                                <span>{theme.name}</span>
+                                {activeTheme.id === theme.id && <Icon path={ICONS.check} className="w-4 h-4" />}
+                            </button>
+                        ))}
                     </div>
                 )}
             </div>
-            <nav className="flex items-center space-x-2 bg-[var(--color-surface-2)] p-1 rounded-lg">
-                <NavButton page="create">Create</NavButton>
-                <NavButton page="explore">Explore</NavButton>
-            </nav>
+            <div className="w-px h-6 bg-[var(--color-border)] mx-2"></div>
+            {user ? (
+                <div className="relative" ref={userMenuRef}>
+                    <button onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}>
+                        <img 
+                            src={user.avatar || `https://ui-avatars.com/api/?name=${user.firstName}+${user.lastName}&background=8B5CF6&color=fff&rounded=true`} 
+                            alt="User avatar" 
+                            className="w-8 h-8 rounded-full object-cover ring-2 ring-offset-2 ring-offset-[var(--color-surface-1)] ring-transparent group-hover:ring-[var(--color-primary)] transition-all"
+                        />
+                    </button>
+                    {isUserMenuOpen && (
+                         <div className="absolute top-full right-0 mt-3 w-56 bg-[var(--color-surface-3)] border border-[var(--color-border)] rounded-lg shadow-2xl z-20 py-1">
+                             <div className="px-3 py-2 border-b border-[var(--color-border)]">
+                                <p className="font-semibold text-sm text-white">{user.firstName} {user.lastName}</p>
+                                <p className="text-xs text-[var(--color-text-secondary)] truncate">{user.email}</p>
+                             </div>
+                             <div className="py-1">
+                                <button
+                                    onClick={() => { setActivePage('settings'); setIsUserMenuOpen(false); }}
+                                    className="w-full text-left px-3 py-2 text-sm flex items-center space-x-2 text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)]"
+                                >
+                                    <Icon path={ICONS.settings} className="w-4 h-4" />
+                                    <span>Account Settings</span>
+                                </button>
+                                <button
+                                    onClick={handleLogout}
+                                    className="w-full text-left px-3 py-2 text-sm flex items-center space-x-2 text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)]"
+                                >
+                                     <Icon path={ICONS.logout} className="w-4 h-4" />
+                                    <span>Logout</span>
+                                </button>
+                             </div>
+                         </div>
+                    )}
+                </div>
+            ) : (
+                <button onClick={() => setIsAuthModalOpen(true)} className="px-4 py-1.5 text-sm font-semibold rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white transition-colors">
+                    Sign In
+                </button>
+            )}
         </div>
       </header>
       <div className="flex flex-grow min-h-0">
@@ -737,37 +571,44 @@ That's it! Your code is now on GitHub.
               onDeleteSession={handleDeleteSession}
           />
           <main className="flex-grow flex flex-col min-h-0">
-            {activePage === 'create' ? (
-                <CreatePage 
-                    history={history}
-                    setHistory={setHistory}
-                    aiCommunication={aiCommunication}
-                    setAiCommunication={setAiCommunication}
-                    attachedImages={attachedImages}
-                    setAttachedImages={setAttachedImages}
-                    handleFileChange={handleFileChange}
-                    handleAiSubmit={handleAiSubmit}
-                    handleCreateVariations={handleCreateVariations}
-                    aspectRatio={aspectRatio}
-                    setAspectRatio={setAspectRatio}
-                    isAspectRatioMenuOpen={isAspectRatioMenuOpen}
-                    setAspectRatioMenuOpen={setAspectRatioMenuOpen}
-                    isDragging={isDragging}
-                    handlePaste={handlePaste}
-                    dragHandlers={{ 
-                        onDragEnter: handleDragEnter, 
-                        onDragLeave: handleDragLeave, 
-                        onDragOver: handleDragOver, 
-                        onDrop: handleDrop 
-                    }}
-                    user={user}
-                    onOpenLoginModal={() => setIsLoginModalOpen(true)}
-                    onLogout={handleLogout}
-                    onAvatarChange={handleAvatarChange}
-                />
-            ) : (
-                <ExplorePage />
-            )}
+             <nav className="flex-shrink-0 px-4 pt-2">
+                <div className="flex items-center space-x-2 bg-[var(--color-surface-1)] p-1 rounded-lg max-w-min">
+                    <PageNavButton page="create">Create</PageNavButton>
+                    <PageNavButton page="explore">Explore</PageNavButton>
+                    {user && <PageNavButton page="settings">Settings</PageNavButton>}
+                </div>
+             </nav>
+             <div className="flex-grow min-h-0 p-4">
+                {activePage === 'create' ? (
+                    <CreatePage 
+                        history={history}
+                        setHistory={setHistory}
+                        aiCommunication={aiCommunication}
+                        setAiCommunication={setAiCommunication}
+                        attachedImages={attachedImages}
+                        setAttachedImages={setAttachedImages}
+                        handleFileChange={handleFileChange}
+                        handleAiSubmit={handleAiSubmit}
+                        handleCreateVariations={handleCreateVariations}
+                        aspectRatio={aspectRatio}
+                        setAspectRatio={setAspectRatio}
+                        isAspectRatioMenuOpen={isAspectRatioMenuOpen}
+                        setAspectRatioMenuOpen={setAspectRatioMenuOpen}
+                        isDragging={isDragging}
+                        handlePaste={handlePaste}
+                        dragHandlers={{ 
+                            onDragEnter: handleDragEnter, 
+                            onDragLeave: handleDragLeave, 
+                            onDragOver: handleDragOver, 
+                            onDrop: handleDrop 
+                        }}
+                    />
+                ) : activePage === 'explore' ? (
+                    <ExplorePage />
+                ) : user ? (
+                   <AccountSettingsPage user={user} onUpdateUser={handleUpdateUser} onAvatarChange={handleAvatarChange} />
+                ) : null}
+             </div>
           </main>
       </div>
     </div>

@@ -51,7 +51,7 @@ export interface BotHistoryItem {
 
 export type HistoryItem = UserHistoryItem | BotHistoryItem;
 
-export type Page = 'create' | 'explore';
+export type Page = 'create' | 'explore' | 'settings';
 
 export interface Session {
     id: number;
@@ -68,7 +68,19 @@ export interface Theme {
 }
 
 export interface User {
-    isLoggedIn: boolean;
-    name: string;
+    firstName: string;
+    lastName: string;
+    email: string;
     avatar: string | null; // base64 string
+    mfaEnabled: boolean;
+    linkedProviders: ('google' | 'apple')[];
+}
+
+export interface SessionDevice {
+    id: string;
+    isCurrent: boolean;
+    browser: string;
+    os: string;
+    ip: string;
+    lastActive: string; // ISO String
 }

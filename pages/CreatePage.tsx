@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { HistoryItem, UserImage, AspectRatio, User, UserHistoryItem, BotHistoryItem } from '../types';
+import { HistoryItem, UserImage, AspectRatio, UserHistoryItem, BotHistoryItem } from '../types';
 import { ICONS, ASPECT_RATIO_OPTIONS } from '../constants';
 import { Icon } from '../components/Icon';
 import { UserMessageCard, BotMessageCard } from '../components/MessageCards';
@@ -26,10 +26,6 @@ export const CreatePage: React.FC<{
         onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
         onDrop: (e: React.DragEvent<HTMLDivElement>) => void;
     };
-    user: User | null;
-    onOpenLoginModal: () => void;
-    onLogout: () => void;
-    onAvatarChange: (file: File) => void;
 }> = ({
     history,
     setHistory,
@@ -47,14 +43,9 @@ export const CreatePage: React.FC<{
     isDragging,
     handlePaste,
     dragHandlers,
-    user,
-    onOpenLoginModal,
-    onLogout,
-    onAvatarChange
 }) => {
     const historyContainerRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const avatarInputRef = useRef<HTMLInputElement>(null);
     const menuContainerRef = useRef<HTMLDivElement>(null);
     const selectedAspectRatio = ASPECT_RATIO_OPTIONS.find(opt => opt.name === aspectRatio);
 
@@ -66,12 +57,6 @@ export const CreatePage: React.FC<{
         setHistory(prev => prev.filter(item => item.id !== idToDelete));
     };
     
-    const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            onAvatarChange(e.target.files[0]);
-        }
-    };
-
     useEffect(() => {
         if (historyContainerRef.current) {
             historyContainerRef.current.scrollTop = historyContainerRef.current.scrollHeight;
@@ -91,7 +76,7 @@ export const CreatePage: React.FC<{
     }, [setAspectRatioMenuOpen]);
 
     return (
-        <div className="relative flex flex-col flex-grow min-h-0 bg-[var(--color-surface-1)]/80 backdrop-blur-sm" {...dragHandlers} onPaste={handlePaste}>
+        <div className="relative flex flex-col flex-grow h-full bg-[var(--color-surface-1)]/80 backdrop-blur-sm rounded-xl overflow-hidden" {...dragHandlers} onPaste={handlePaste}>
              {isDragging && (
                 <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center backdrop-blur-md z-50 border-2 border-dashed border-[var(--color-primary)] m-4 rounded-xl">
                     <Icon path={ICONS.addCircle} className="w-24 h-24 text-[var(--color-primary)]" />
@@ -109,10 +94,10 @@ export const CreatePage: React.FC<{
                  <div className="flex flex-col space-y-6">
                     {history.map((item) => {
                         if (item.type === 'user') {
-                            return <UserMessageCard key={item.id} item={item} />;
+                            return <UserMessageCard key={item.id} item={item as UserHistoryItem} />;
                         }
                         if (item.type === 'bot') {
-                            return <BotMessageCard key={item.id} item={item} onDelete={() => handleDeleteHistoryItem(item.id)} onCreateVariations={handleCreateVariations} />;
+                            return <BotMessageCard key={item.id} item={item as BotHistoryItem} onDelete={() => handleDeleteHistoryItem(item.id)} onCreateVariations={handleCreateVariations} />;
                         }
                         return null;
                     })}
@@ -151,8 +136,14 @@ export const CreatePage: React.FC<{
                             type="text"
                             value={aiCommunication}
                             onChange={(e) => setAiCommunication(e.target.value)}
-                            placeholder="Communicate with AI..."
+                            placeholder="Type a prompt or describe an edit... (Shift+Enter for new line)"
                             className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-full py-3 pl-28 pr-14 text-[var(--color-text-primary)] placeholder-[var(--color-text-secondary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] transition-shadow"
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleAiSubmit();
+                                }
+                            }}
                         />
                         <div className="absolute left-0 top-0 bottom-0 flex items-center pl-3 space-x-1">
                             <button
@@ -190,7 +181,6 @@ export const CreatePage: React.FC<{
                                                         <div className="flex items-center">
                                                            <Icon path={opt.iconPath} className="w-5 h-5" />
                                                            <span className="ml-3">{opt.name}</span>
-                                                           {aspectRatio === opt.name && <Icon path={ICONS.check} className="w-4 h-4 ml-2" />}
                                                         </div>
                                                         <span className={`text-xs ${aspectRatio === opt.name ? 'text-purple-200' : 'text-gray-500'}`}>{opt.ratio}</span>
                                                     </button>
@@ -205,7 +195,7 @@ export const CreatePage: React.FC<{
                             <button
                                 type="submit"
                                 disabled={!aiCommunication.trim() && attachedImages.length === 0}
-                                className="p-2 rounded-full transition-colors text-white enabled:hover:bg-[var(--color-surface-3)] disabled:text-gray-600 disabled:cursor-not-allowed"
+                                className="p-2 rounded-full transition-colors text-white bg-[var(--color-primary)] enabled:hover:bg-[var(--color-primary-hover)] disabled:bg-gray-600 disabled:cursor-not-allowed"
                                 aria-label="Send message"
                             >
                                 <Icon path={ICONS.send} className="w-6 h-6" />
@@ -213,41 +203,6 @@ export const CreatePage: React.FC<{
                         </div>
                     </div>
                 </form>
-                <div className="mt-2 flex items-center justify-center">
-                    {user && user.isLoggedIn ? (
-                        <div className="flex items-center space-x-3 text-sm">
-                            <input
-                                type="file"
-                                ref={avatarInputRef}
-                                onChange={handleAvatarFileChange}
-                                accept="image/*"
-                                className="hidden"
-                            />
-                            <button onClick={() => avatarInputRef.current?.click()} className="group relative">
-                                <img
-                                    src={user.avatar || `https://ui-avatars.com/api/?name=${user.name.replace(' ', '+')}&background=8B5CF6&color=fff&rounded=true`}
-                                    alt="User avatar"
-                                    className="w-8 h-8 rounded-full object-cover transition-opacity group-hover:opacity-80"
-                                />
-                                <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Icon path={ICONS.edit} className="w-4 h-4 text-white" />
-                                </div>
-                            </button>
-                            <span className="font-medium text-[var(--color-text-primary)]">{user.name}</span>
-                            <button onClick={onLogout} className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] transition-colors text-[var(--color-text-secondary)] hover:text-white">
-                                <Icon path={ICONS.logout} className="w-4 h-4" />
-                                <span>Logout</span>
-                            </button>
-                        </div>
-                    ) : (
-                        <button
-                            onClick={onOpenLoginModal}
-                            className="flex items-center space-x-2 px-4 py-2 rounded-full bg-white text-gray-800 font-medium hover:bg-gray-200 transition-colors"
-                        >
-                            <span>Sign In</span>
-                        </button>
-                    )}
-                </div>
             </div>
         </div>
     );
