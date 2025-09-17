@@ -92,8 +92,9 @@ const ICONS = {
   palette: 'M12 3.75a.75.75 0 01.75.75v.008l.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.007.008h-.007v-.008l-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008A.75.75 0 0112 3.75zM12 5.25a.75.75 0 01.75.75v.008l.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.007.008h-.007v-.008l-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008A.75.75 0 0112 5.25zm0 1.5a.75.75 0 01.75.75v.008l.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.007.008h-.007v-.008l-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008A.75.75 0 0112 6.75zM12 15a.75.75 0 01.75.75v.008l.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.008.007.008h-.007v-.008l-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008-.008A.75.75 0 0112 15z M3.055 11.23a.75.75 0 010-1.06l4.242-4.243a.75.75 0 011.061 0l4.243 4.243a.75.75 0 010 1.06l-4.243 4.243a.75.75 0 01-1.06 0L3.055 11.23z',
   code: 'M6.75 7.5 3 12l3.75 4.5M17.25 7.5 21 12l-3.75 4.5',
   google: 'M11.99 13.12l-1.42 1.42a6.5 6.5 0 0 1-4.32-8.3l1.42-1.42a4.5 4.5 0 0 0 4.32 8.3z M12.01 10.88l1.42-1.42a4.5 4.5 0 0 0-4.32-8.3L7.69 2.58a6.5 6.5 0 0 1 4.32 8.3z M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z',
-  apple: 'M12.042 17.51c-.817.005-1.632-.204-2.387-.611-.74-.396-1.42-1.025-2.028-1.875-.583-.815-1.03-1.823-1.33-3.004-.306-1.18-.458-2.508-.458-3.982 0-1.474.152-2.802.458-3.982.3-1.181.747-2.19 1.33-3.005.608-.85 1.287-1.479 2.028-1.875.755-.407 1.57-.616 2.387-.621.822-.005 1.637.204 2.387.611.735.396 1.41.996 2.027 1.846.18.25.326.48.438.692.112-.212.258-.442.438-.692.617-.85 1.292-1.45 2.027-1.846.75-.407 1.565-.616 2.387-.611.817.005 1.632.204 2.387.611.74.396 1.42.996 2.028 1.846.18.25.326.48.438.692.112-.212.258-.442.438-.692.608-.85 1.287-1.479 2.028-1.875.755-.407 1.57-.616 2.387-.621.822-.005 1.637.204 2.387.611.735.396 1.41.996 2.027 1.846.592.825 1.04 1.833 1.345 3.014.305 1.18.457 2.508.457 3.982s-.152 2.802-.457 3.982c-.305 1.181-.753 2.19-1.345 3.015-.617.85-1.292 1.479-2.027 1.875-.75.407-1.565.616-2.387.611-.817-.005-1.632-.204-2.387-.611-.74-.396-1.42-1.025-2.028-1.875-.18-.25-.326-.48-.438-.692-.112.212-.258-.442-.438-.692-.608.85-1.287 1.479-2.028 1.875-.755.407-1.57.616-2.387.621zM15.5 5.5c.345-.715.518-1.52.518-2.415 0-.616-.1-1.18-.3-1.695-.2-.515-.508-.95-1.023-1.305-.516-.355-1.13-.53-1.846-.53-.716 0-1.427.24-2.133.72-.706.48-1.305.995-1.797 1.545-.492.55-.89 1.13-1.192 1.74-.301.61-.452 1.29-.452 2.04 0 .615.105 1.18.314 1.695.21.515.523.95 1.04 1.305.516.355 1.13.53 1.846.53.716 0 1.427-.24 2.133-.72.706.48 1.305-.995 1.797-1.545.492-.55.89-1.13 1.192-1.74.301-.61.452-1.29.452-2.04z',
+  apple: 'M12.042 17.51c-.817.005-1.632-.204-2.387-.611-.74-.396-1.42-1.025-2.028-1.875-.583-.815-1.03-1.823-1.33-3.004-.306-1.18-.458-2.508-.458-3.982 0-1.474.152-2.802.458-3.982.3-1.181.747-2.19 1.33-3.005.608-.85 1.287-1.479 2.028-1.875.755-.407 1.57-.616 2.387-.621.822-.005 1.637.204 2.387.611.735.396 1.41.996 2.027 1.846.18.25.326.48.438.692.112-.212.258-.442.438-.692.617-.85 1.292-1.45 2.027-1.846.75-.407 1.565-.616 2.387-.611.817.005 1.632.204 2.387.611.74.396 1.42.996 2.028 1.846.18.25.326.48.438.692.112-.212.258-.442.438-.692.608-.85 1.287-1.479 2.028-1.875.755-.407 1.57-.616 2.387-.621.822-.005 1.637.204 2.387.611.735.396 1.41.996 2.027 1.846.592.825 1.04 1.833 1.345 3.014.305 1.18.457 2.508.457 3.982s-.152 2.802-.457 3.982c-.305 1.181-.753 2.19-1.345 3.015-.617.85-1.292 1.479-2.027 1.875-.75.407-1.565.616-2.387.611-.817-.005-1.632-.204-2.387-.611-.74-.396-1.42-1.025-2.028-1.875-.18-.25-.326-.48-.438-.692-.112.212-.258-.442-.438-.692-.608.85-1.287 1.479-2.028 1.875-.755-.407-1.57.616-2.387.621zM15.5 5.5c.345-.715.518-1.52.518-2.415 0-.616-.1-1.18-.3-1.695-.2-.515-.508-.95-1.023-1.305-.516-.355-1.13-.53-1.846-.53-.716 0-1.427.24-2.133.72-.706.48-1.305.995-1.797 1.545-.492.55-.89 1.13-1.192 1.74-.301.61-.452 1.29-.452 2.04 0 .615.105 1.18.314 1.695.21.515.523.95 1.04 1.305.516.355 1.13.53 1.846.53.716 0 1.427-.24 2.133-.72.706.48 1.305-.995 1.797-1.545.492.55.89-1.13 1.192-1.74.301-.61.452-1.29.452-2.04z',
   logout: 'M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6A2.25 2.25 0 005.25 5.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75',
+  variations: 'M16.5 3.75h-9A2.25 2.25 0 005.25 6v9A2.25 2.25 0 007.5 17.25h9A2.25 2.25 0 0018.75 15V6A2.25 2.25 0 0016.5 3.75zM7.5 18.75A3.75 3.75 0 013.75 15V7.5h1.5v7.5A2.25 2.25 0 007.5 17.25h7.5v1.5H7.5z',
 };
 
 // -- DYNAMIC BACKGROUND COMPONENT --
@@ -142,7 +143,7 @@ const UserMessageCard: React.FC<{ item: UserHistoryItem }> = ({ item }) => (
   </div>
 );
 
-const BotMessageCard: React.FC<{ item: BotHistoryItem; onDelete: () => void; }> = ({ item, onDelete }) => {
+const BotMessageCard: React.FC<{ item: BotHistoryItem; onDelete: () => void; onCreateVariations: (prompt: string, imageUrl: string) => void; }> = ({ item, onDelete, onCreateVariations }) => {
     if (item.isLoading) {
         return (
             <div className="flex justify-start mr-10">
@@ -187,19 +188,28 @@ const BotMessageCard: React.FC<{ item: BotHistoryItem; onDelete: () => void; }> 
                      )}
                     
                     <div className="absolute top-3 right-3 flex flex-col space-y-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                       <button
-                           onClick={onDelete}
-                           className="bg-black/50 p-2 rounded-full text-white hover:bg-red-500/80 backdrop-blur-sm"
-                           aria-label="Delete image"
-                       >
-                           <Icon path={ICONS.trash} className="w-5 h-5" />
-                       </button>
+                       {item.prompt && item.imageUrl && (
+                         <button
+                           onClick={() => onCreateVariations(item.prompt!, item.imageUrl!)}
+                           className="bg-black/50 p-2 rounded-full text-white hover:bg-blue-500/80 backdrop-blur-sm"
+                           aria-label="Create variations"
+                         >
+                           <Icon path={ICONS.variations} className="w-5 h-5" />
+                         </button>
+                       )}
                        <button
                            onClick={handleDownload}
                            className="bg-black/50 p-2 rounded-full text-white hover:bg-[var(--color-primary)]/80 backdrop-blur-sm"
                            aria-label="Download image"
                        >
                            <Icon path={ICONS.download} className="w-5 h-5" />
+                       </button>
+                       <button
+                           onClick={onDelete}
+                           className="bg-black/50 p-2 rounded-full text-white hover:bg-red-500/80 backdrop-blur-sm"
+                           aria-label="Delete image"
+                       >
+                           <Icon path={ICONS.trash} className="w-5 h-5" />
                        </button>
                     </div>
                 </div>
@@ -304,6 +314,7 @@ const CreatePage: React.FC<{
     setAttachedImages: (images: UserImage[]) => void;
     handleFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
     handleAiSubmit: () => void;
+    handleCreateVariations: (prompt: string, imageUrl: string) => void;
     aspectRatio: AspectRatio;
     setAspectRatio: (ratio: AspectRatio) => void;
     isAspectRatioMenuOpen: boolean;
@@ -311,10 +322,10 @@ const CreatePage: React.FC<{
     isDragging: boolean;
     handlePaste: (e: React.ClipboardEvent<HTMLDivElement>) => void;
     dragHandlers: {
-        handleDragEnter: (e: React.DragEvent<HTMLDivElement>) => void;
-        handleDragLeave: (e: React.DragEvent<HTMLDivElement>) => void;
-        handleDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
-        handleDrop: (e: React.DragEvent<HTMLDivElement>) => void;
+        onDragEnter: (e: React.DragEvent<HTMLDivElement>) => void;
+        onDragLeave: (e: React.DragEvent<HTMLDivElement>) => void;
+        onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
+        onDrop: (e: React.DragEvent<HTMLDivElement>) => void;
     };
     user: User | null;
     onOpenLoginModal: () => void;
@@ -329,6 +340,7 @@ const CreatePage: React.FC<{
     setAttachedImages,
     handleFileChange,
     handleAiSubmit,
+    handleCreateVariations,
     aspectRatio,
     setAspectRatio,
     isAspectRatioMenuOpen,
@@ -401,7 +413,7 @@ const CreatePage: React.FC<{
                             return <UserMessageCard key={item.id} item={item} />;
                         }
                         if (item.type === 'bot') {
-                            return <BotMessageCard key={item.id} item={item} onDelete={() => handleDeleteHistoryItem(item.id)} />;
+                            return <BotMessageCard key={item.id} item={item} onDelete={() => handleDeleteHistoryItem(item.id)} onCreateVariations={handleCreateVariations} />;
                         }
                         return null;
                     })}
@@ -902,6 +914,22 @@ const App: React.FC = () => {
     }
   };
 
+  const getSystemPreamble = (isImageTask: boolean, currentAspectRatio: AspectRatio) => {
+    const currentDate = new Date().toLocaleDateString(undefined, {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+    });
+
+    let preamble = `You are Prompta, a multi-talented AI creative assistant. Your primary role is to help users generate and edit stunning visuals. You are also a helpful partner, capable of answering general questions, brainstorming ideas, writing captions for images, and refining user prompts to be more effective. Be friendly, creative, and always aim to be as helpful as possible. For your reference, the current date is ${currentDate}.`;
+    
+    if (isImageTask) {
+        preamble += ` When generating or editing an image, you MUST strictly conform to the user's specified aspect ratio: **${currentAspectRatio} (${ASPECT_RATIO_OPTIONS.find(o => o.name === currentAspectRatio)?.ratio})**.`;
+    }
+    return preamble;
+  };
+
   const handleAiSubmit = async () => {
     const message = aiCommunication.trim();
     if ((!message && attachedImages.length === 0) || !activeSessionId) return;
@@ -914,20 +942,8 @@ const App: React.FC = () => {
     
     const isImageTask = attachedImages.length > 0 || /create|generate|make|draw|edit|change|render|imagine/i.test(message);
     
-    const currentDate = new Date().toLocaleDateString(undefined, {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-    });
-
-    let systemPreamble = `You are Prompta, a multi-talented AI creative assistant. Your primary role is to help users generate and edit stunning visuals. You are also a helpful partner, capable of answering general questions, brainstorming ideas, writing captions for images, and refining user prompts to be more effective. Be friendly, creative, and always aim to be as helpful as possible. For your reference, the current date is ${currentDate}.`;
-    
-    if (isImageTask) {
-        systemPreamble += ` When generating or editing an image, you MUST strictly conform to the user's specified aspect ratio: **${aspectRatio} (${ASPECT_RATIO_OPTIONS.find(o => o.name === aspectRatio)?.ratio})**.`;
-    }
-    
     let userInstruction = message || `Please perform the most logical edit based on the attached image(s). If an aspect ratio is selected (${aspectRatio}), prioritize resizing the image.`;
+    const systemPreamble = getSystemPreamble(isImageTask, aspectRatio);
     const finalMessage = `${systemPreamble}\n\n--- USER REQUEST ---\n${userInstruction}`;
     
     const userMessage: UserHistoryItem = { type: 'user', id: userMessageId, text: message, images: attachedImages };
@@ -971,6 +987,61 @@ const App: React.FC = () => {
     } catch (e: any) {
         console.error(e);
         const errorMessage = e.message || "Sorry, I couldn't process that. Please try again.";
+        const errorResponse: BotHistoryItem = { type: 'bot', id: botMessageId, isLoading: false, text: errorMessage };
+        setSessions(prevSessions => prevSessions.map(s => s.id === activeSessionId ? { ...s, history: s.history.map(item => item.id === botMessageId ? errorResponse : item) } : s));
+    }
+  };
+  
+  const handleCreateVariations = async (originalPrompt: string, imageUrl: string) => {
+    if (!activeSessionId) return;
+
+    // 1. Convert data URL back into a UserImage object
+    const response = await fetch(imageUrl);
+    const blob = await response.blob();
+    const fileName = originalPrompt?.substring(0, 20).replace(/[^a-z0-9]/gi, '_') || 'source';
+    const file = new File([blob], `${fileName}.png`, { type: blob.type });
+    const base64Data = imageUrl.substring(imageUrl.indexOf(',') + 1);
+    const variationSourceImage: UserImage = { data: base64Data, file: file };
+
+    // 2. Set up for API call
+    const currentChat = chat ?? createChatSession();
+    if (!chat) setChat(currentChat);
+
+    const userMessageId = Date.now();
+    const botMessageId = userMessageId + 1;
+    
+    const variationPromptText = `Generate a stylistic variation of the provided image. Use the original prompt for context and inspiration: "${originalPrompt}"`;
+    const systemPreamble = getSystemPreamble(true, aspectRatio);
+    const finalMessage = `${systemPreamble}\n\n--- USER REQUEST ---\n${variationPromptText}`;
+
+    // 3. Update history with user action and loading state
+    const userMessage: UserHistoryItem = { type: 'user', id: userMessageId, text: `Create a variation...`, images: [variationSourceImage] };
+    const loadingMessage: BotHistoryItem = { type: 'bot', id: botMessageId, isLoading: true, prompt: "Generating variation..." };
+    
+    setSessions(prevSessions => prevSessions.map(s => s.id === activeSessionId ? { ...s, history: [...s.history, userMessage, loadingMessage] } : s));
+
+    try {
+        const parts = [
+            { inlineData: { data: variationSourceImage.data, mimeType: variationSourceImage.file.type } },
+            { text: finalMessage }
+        ];
+        
+        const response = await currentChat.sendMessage({ message: parts });
+
+        let resultImage: string | undefined;
+        const resultText = response.text ? response.text : undefined;
+        for (const part of response.candidates?.[0]?.content?.parts || []) {
+            if (part.inlineData) resultImage = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        }
+        
+        const botResponse: BotHistoryItem = (resultImage || resultText) ?
+            { type: 'bot', id: botMessageId, isLoading: false, imageUrl: resultImage, text: resultText, prompt: originalPrompt } :
+            { type: 'bot', id: botMessageId, isLoading: false, text: "The AI responded, but did not generate a variation. Please try again.", prompt: originalPrompt };
+
+        setSessions(prevSessions => prevSessions.map(s => s.id === activeSessionId ? { ...s, history: s.history.map(item => item.id === botMessageId ? botResponse : item) } : s));
+    } catch (e: any) {
+        console.error(e);
+        const errorMessage = e.message || "Sorry, I couldn't create a variation. Please try again.";
         const errorResponse: BotHistoryItem = { type: 'bot', id: botMessageId, isLoading: false, text: errorMessage };
         setSessions(prevSessions => prevSessions.map(s => s.id === activeSessionId ? { ...s, history: s.history.map(item => item.id === botMessageId ? errorResponse : item) } : s));
     }
@@ -1305,13 +1376,19 @@ That's it! Your code is now on GitHub.
                     setAttachedImages={setAttachedImages}
                     handleFileChange={handleFileChange}
                     handleAiSubmit={handleAiSubmit}
+                    handleCreateVariations={handleCreateVariations}
                     aspectRatio={aspectRatio}
                     setAspectRatio={setAspectRatio}
                     isAspectRatioMenuOpen={isAspectRatioMenuOpen}
                     setAspectRatioMenuOpen={setAspectRatioMenuOpen}
                     isDragging={isDragging}
                     handlePaste={handlePaste}
-                    dragHandlers={{ handleDragEnter, handleDragLeave, handleDragOver, handleDrop }}
+                    dragHandlers={{ 
+                        onDragEnter: handleDragEnter, 
+                        onDragLeave: handleDragLeave, 
+                        onDragOver: handleDragOver, 
+                        onDrop: handleDrop 
+                    }}
                     user={user}
                     onOpenLoginModal={() => setIsLoginModalOpen(true)}
                     onLogout={handleLogout}
